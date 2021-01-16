@@ -1,6 +1,7 @@
 #pragma once
 
-#include <mem/physical.h>
+#include <mem/defs.h>
+#include <types.h>
 
 namespace MemoryManager {
 #pragma pack(push)
@@ -24,22 +25,10 @@ namespace MemoryManager {
 
 #pragma pack(pop)
 
-    class Heap {
-    public:
-        void Init(Physical* physicalMem);
+    namespace Heap {
+        void Init();
 
         void* malloc(size_t size);
         void free(void* ptr);
-
-    private:
-        uint64_t top;
-
-        // FREE BLOCKS
-        HeapLLBlock* firstFreeBlock;
-        HeapLLNode* freeHead;
-
-        // USED BLOCKS
-        HeapLLBlock* firstUsedBlock;
-        HeapLLNode* usedHead;
-    };
+    }; // namespace Heap
 } // namespace MemoryManager

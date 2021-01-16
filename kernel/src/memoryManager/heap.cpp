@@ -1,21 +1,28 @@
 #include <mem/heap.h>
 
-MemoryManager::Heap* instance;
+#include <mem/physical.h>
 
-void* malloc(size_t size) { return instance->malloc(size); }
-void free(void* ptr) { instance->free(ptr); }
+void* malloc(size_t size) { return MemoryManager::Heap::malloc(size); }
+void free(void* ptr) { MemoryManager::Heap::free(ptr); }
 
-namespace MemoryManager {
-    void Heap::Init(Physical* physicalMem) {
-        instance = this;
-        top = physicalMem->GetNumPages() * PAGE_SIZE + KERNEL_VMA;
-    }
+namespace MemoryManager { namespace Heap {
+    uint64_t top;
 
-    void* Heap::malloc(size_t size) {
+    // FREE BLOCKS
+    HeapLLBlock* firstFreeBlock;
+    HeapLLNode* freeHead;
+
+    // USED BLOCKS
+    HeapLLBlock* firstUsedBlock;
+    HeapLLNode* usedHead;
+
+    void Init() { top = Physical::GetNumPages() * PAGE_SIZE + KERNEL_VMA; }
+
+    void* malloc(size_t size) {
         void* ret = (void*)top;
         top += size;
         return ret;
     }
 
-    void Heap::free(void* ptr) {}
-} // namespace MemoryManager
+    void free(void* ptr) {}
+}} // namespace MemoryManager::Heap
