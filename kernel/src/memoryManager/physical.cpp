@@ -5,6 +5,8 @@
 
 namespace MemoryManager {
     bool Physical::Init(multiboot2BootInformation* bootInfo) {
+        infoLogger.Log("Initializing physical memory manager . . .");
+
         // Search for the memory map tag in the boot information
         uint64_t bootInfoTop = (uint64_t)bootInfo + bootInfo->totalSize;
         uint64_t cur = (uint64_t)bootInfo + 8;
@@ -83,9 +85,7 @@ namespace MemoryManager {
         }
 
         // Physical bitmap is now ready
-        infoLogger.Log("PHYSICAL PAGES AVAIABLE: 0x%x", numTotalPages);
-        infoLogger.Log("PHYSICAL PAGES FREE: 0x%x", numFreePages);
-        infoLogger.Log("TOTAL FREE MEMORY: %i KB (%i MB)", (numFreePages * PAGE_SIZE) / KILOBYTE, (numFreePages * PAGE_SIZE) / MEGABYTE);
+        infoLogger.Log("Total Free Memory: %i KB (%i MB)", (numFreePages * PAGE_SIZE) / KILOBYTE, (numFreePages * PAGE_SIZE) / MEGABYTE);
         infoLogger.Log("Physical Memory Manager Ready!");
 
         return true;

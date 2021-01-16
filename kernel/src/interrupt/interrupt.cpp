@@ -87,7 +87,7 @@ namespace InterruptHandler {
     }
 
     void Init() {
-        infoLogger.Log("Setting up exception handlers . . .");
+        infoLogger.Log("Initializing interrupt handler . . .");
 
         for (int i = 0; i < 32; i++)
             exceptionHandlers[i] = nullptr;
@@ -125,10 +125,8 @@ namespace InterruptHandler {
         SetupExceptionHandler(30, (uint64_t)InterruptHandler30);
         SetupExceptionHandler(31, (uint64_t)InterruptHandler31);
 
-        infoLogger.Log("Installing idt . . .");
         InstallIDT();
 
-        infoLogger.Log("Enabling interrupts . . .");
         EnableInterrupts();
 
         infoLogger.Log("Interrupt handler initialized!");

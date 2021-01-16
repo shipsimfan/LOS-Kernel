@@ -7,8 +7,6 @@
 MemoryManager::Physical* physInstance;
 MemoryManager::Virtual* virtInstance;
 bool PageFaultHandler(InterruptHandler::CPUState cpu, InterruptHandler::StackState stack) {
-    debugLogger.Log("%#x", stack.errorCode & 1);
-
     if ((stack.errorCode & 1) == 0) {
         if (cpu.cr2 >= KERNEL_VMA) {
             physAddr_t physAddr = physInstance->AllocNextFreePage();
@@ -53,22 +51,17 @@ namespace MemoryManager {
     }
 
     bool Virtual::Init(Physical* physicalMem) {
+        infoLogger.Log("Initializing virtual memory manager . . .");
+
         physInstance = physicalMem;
         virtInstance = this;
 
         this->physicalMem = physicalMem;
-        PML4* bootPML4 = (PML4*)((uint64_t)GetCurrentPML4() + KERNEL_VMA);
-        infoLogger.Log("PML4 Location: 0x%x", bootPML4);
-        infoLogger.Log("First PML4 Entry: 0x%x", (uint64_t)bootPML4->GetEntry(0));
-
-        infoLogger.Log("Kernel Size: 0x%x", KERNEL_SIZE);
 
         // Identity map all of memory
         uint64_t numPages = physicalMem->GetNumPages();
         uint64_t numPageTables = numPages / 512;
         uint64_t numPageDirectories = numPageTables / 512;
-        debugLogger.Log("Num Pages: %i\nNum Page Tables: %i, Num Page Directories: %i", numPages, numPageTables, numPageDirectories);
-
         // Allocate Kernel PML4
         kernelPML4 = (PML4*)(physicalMem->AllocNextFreePage() + KERNEL_VMA);
         memset(kernelPML4, 0, PAGE_SIZE);
@@ -114,16 +107,12 @@ namespace MemoryManager {
             }
         }
 
-        debugLogger.Log("Kernel PML4 Address: 0x%x", kernelPML4);
-
-        infoLogger.Log("Installing new PML4 . . .");
         SetCurrentPML4((uint64_t)kernelPML4 - KERNEL_VMA);
         currentPML4 = kernelPML4;
-        infoLogger.Log("New PML4 Installed!");
 
         InterruptHandler::SetExceptionHandler(0xE, PageFaultHandler);
 
-        infoLogger.Log("Virtual Memory Manager Ready!");
+        infoLogger.Log("Virtual memory manager ready!");
 
         return true;
     }
