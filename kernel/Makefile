@@ -11,16 +11,21 @@ KERNEL := $(BIN_DIR)/kernel.elf
 # SOURCE FILES
 CPP_SRC_FILES := $(shell find $(SRC_DIR) -name '*.cpp')
 ASM_SRC_FILES := $(shell find $(SRC_DIR) -name '*.asm')
+CC_SRC_FILES := $(shell find $(SRC_DIR) -name '*.c')
 
 LINK_FILE := ./link.ld
 
 # OBJECT FILES
 CPP_OBJ_FILES := $(CPP_SRC_FILES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 ASM_OBJ_FILES := $(ASM_SRC_FILES:$(SRC_DIR)/%.asm=$(OBJ_DIR)/%.o)
+CC_OBJ_FILES := $(CC_SRC_FILES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # PROGRAMS
 CPP := x86_64-elf-g++
 CPP_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -c -Wall -I./include -I./stdinc -D DEBUG -g
+
+CC := x86_64-elf-gcc
+CC_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -c -Wall -I./include -I./stdinc -D DEBUG -g
 
 ASM := nasm
 ASM_FLAGS := -f elf64 -g -F dwarf
@@ -53,7 +58,7 @@ $(ISO): dirs $(KERNEL)
 	@cp $(KERNEL) $(ISO_DIR)/kernel.elf
 	@grub-mkrescue -o $@ $(ISO_DIR)
 
-$(KERNEL): $(CPP_OBJ_FILES) $(ASM_OBJ_FILES)
+$(KERNEL): $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(CC_OBJ_FILES)
 	$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
@@ -61,6 +66,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
 	$(ASM) $(ASM_FLAGS) -o $@ $^
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $$(@D)/.
+	$(CC) $(CC_FLAGS) -o $@ $^
 
 # DIRECTORY RULES
 $(OBJ_DIR)/.:
