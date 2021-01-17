@@ -1,11 +1,9 @@
 # DIRECTORIES
 BIN_DIR := ./bin
-ISO_DIR := ./iso
 OBJ_DIR := ./obj
 SRC_DIR := ./src
 
 # TARGET
-ISO := $(BIN_DIR)/os.iso
 KERNEL := $(BIN_DIR)/kernel.elf
 
 # SOURCE FILES
@@ -32,28 +30,14 @@ LD_POST_FLAGS := -nostdlib -lgcc
 # BASE RULES
 all: $(KERNEL)
 
-iso: $(ISO)
-
-run: $(ISO)
-	@qemu-system-x86_64 -boot d -cdrom $(ISO) -m 1024
-
-run-debug: $(ISO)
-	@qemu-system-x86_64 -S -gdb tcp::1234 -boot d -cdrom $(ISO) -m 1024 -d int &
-	@gdb
-
 clean:
 	rm -rf $(OBJ_DIR)/*
 	rm -rf $(BIN_DIR)/*
-	rm -rf $(ISO_DIR)/kernel.elf
 
 # COMPILATION RULES
 .SECONDEXPANSION:
 
-$(ISO): dirs $(KERNEL)
-	@cp $(KERNEL) $(ISO_DIR)/kernel.elf
-	@grub-mkrescue -o $@ $(ISO_DIR)
-
-$(KERNEL): $(CPP_OBJ_FILES) $(ASM_OBJ_FILES)
+$(KERNEL): $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(CC_OBJ_FILES)
 	$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
@@ -75,3 +59,4 @@ dirs:
 
 # . RULES
 .PRECIOUS: $(OBJ_DIR)/. $(OBJ_DIR)%/.
+.PHONY: dirs

@@ -3,8 +3,18 @@
 #include <logger.h>
 #include <mem/defs.h>
 
-namespace MemoryManager {
-    bool Physical::Init(multiboot2BootInformation* bootInfo) {
+namespace MemoryManager { namespace Physical {
+    size_t bitmapSize;
+    uint64_t bitmap[PHYSICAL_BITMAP_SIZE];
+
+    size_t nextFreePage = 0xFFFFFFFFFFFFFFFF;
+
+    uint64_t numFreePages;
+    uint64_t numTotalPages;
+
+    bool Init(multiboot2BootInformation* bootInfo) {
+        infoLogger.Log("Initializing physical memory manager . . .");
+
         // Search for the memory map tag in the boot information
         uint64_t bootInfoTop = (uint64_t)bootInfo + bootInfo->totalSize;
         uint64_t cur = (uint64_t)bootInfo + 8;
@@ -83,15 +93,13 @@ namespace MemoryManager {
         }
 
         // Physical bitmap is now ready
-        infoLogger.Log("PHYSICAL PAGES AVAIABLE: 0x%x", numTotalPages);
-        infoLogger.Log("PHYSICAL PAGES FREE: 0x%x", numFreePages);
-        infoLogger.Log("TOTAL FREE MEMORY: %i KB (%i MB)", (numFreePages * PAGE_SIZE) / KILOBYTE, (numFreePages * PAGE_SIZE) / MEGABYTE);
-        infoLogger.Log("Physical Memory Manager Ready!");
+        infoLogger.Log("Total Free Memory: %i KB (%i MB)", (numFreePages * PAGE_SIZE) / KILOBYTE, (numFreePages * PAGE_SIZE) / MEGABYTE);
+        infoLogger.Log("Physical memory manager initialized!");
 
         return true;
     }
 
-    physAddr_t Physical::AllocNextFreePage() {
+    physAddr_t AllocNextFreePage() {
         physAddr_t nfp = nextFreePage;
 
         AllocPage(nextFreePage * PAGE_SIZE);
@@ -99,7 +107,7 @@ namespace MemoryManager {
         return nfp * PAGE_SIZE;
     }
 
-    bool Physical::IsPageFree(physAddr_t addr) {
+    bool IsPageFree(physAddr_t addr) {
         size_t i = addr / PAGE_SIZE / 64;
         size_t b = 64 - ((addr / PAGE_SIZE) % 64);
 
@@ -109,7 +117,7 @@ namespace MemoryManager {
         return (bitmap[i] >> b) & 1 ? false : true;
     }
 
-    void Physical::AllocPage(physAddr_t addr) {
+    void AllocPage(physAddr_t addr) {
         if (!IsPageFree(addr))
             return;
 
@@ -133,7 +141,7 @@ namespace MemoryManager {
         }
     }
 
-    void Physical::FreePage(physAddr_t addr) {
+    void FreePage(physAddr_t addr) {
         if (IsPageFree(addr))
             return;
 
@@ -151,10 +159,10 @@ namespace MemoryManager {
         bitmap[i] &= ~(1 << b);
     }
 
-    uint64_t Physical::GetNumFreePages() { return numFreePages; }
+    uint64_t GetNumFreePages() { return numFreePages; }
 
-    uint64_t Physical::GetNumUsedPages() { return numTotalPages - numFreePages; }
+    uint64_t GetNumUsedPages() { return numTotalPages - numFreePages; }
 
-    uint64_t Physical::GetNumPages() { return numTotalPages; }
+    uint64_t GetNumPages() { return numTotalPages; }
 
-} // namespace MemoryManager
+}} // namespace MemoryManager

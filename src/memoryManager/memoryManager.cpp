@@ -2,11 +2,8 @@
 
 #include <logger.h>
 #include <mem/heap.h>
+#include <mem/physical.h>
 #include <mem/virtual.h>
-
-MemoryManager::Physical physicalMem;
-MemoryManager::Virtual virtualMem;
-MemoryManager::Heap heap;
 
 uint64_t KERNEL_LMA;
 uint64_t KERNEL_VMA;
@@ -23,17 +20,19 @@ bool MemoryManager::Init(multiboot2BootInformation* bootInfo) {
     KERNEL_TOP = (uint64_t)&__KERNEL_TOP;
     KERNEL_SIZE = KERNEL_TOP - KERNEL_BOTTOM;
 
-    if (!physicalMem.Init(bootInfo)) {
+    if (!Physical::Init(bootInfo)) {
         errorLogger.Log("Failed to initialize physical memory manager!");
         return false;
     }
 
-    if (!virtualMem.Init(&physicalMem)) {
+    if (!Virtual::Init()) {
         errorLogger.Log("Failed to initialize virtual memory manager!");
         return false;
     }
 
-    heap.Init(&physicalMem);
+    Heap::Init();
+
+    infoLogger.Log("Memory manager initialized!");
 
     return true;
 }

@@ -12,16 +12,63 @@ int printf(const char* format, ...) {
     return ret;
 }
 
-char* __int_str(intmax_t i, char b[], int base, bool plusSignIfNeeded, bool spaceSignIfNeeded, int paddingNo, bool justify, bool zeroPad) {
-    char digit[32] = {0};
-    memset(digit, 0, 32);
-    strcpy(digit, "0123456789");
-
-    if (base == 16)
-        strcat(digit, "ABCDEF");
-    else if (base == 17) {
-        strcat(digit, "abcdef");
+char* __uint_str(uintmax_t i, char b[], int base, bool plusSignIfNeeded, bool spaceSignIfNeeded, int paddingNo, bool justify, bool zeroPad) {
+    const char* digit = "0123456789abcdef";
+    if (base == 17) {
         base = 16;
+        digit = "0123456789ABCDEF";
+    }
+
+    char* p = b;
+    if (plusSignIfNeeded)
+        *p++ = '+';
+    else if (spaceSignIfNeeded)
+        *p++ = ' ';
+
+    uintmax_t shifter = i;
+    do {
+        ++p;
+        shifter = shifter / base;
+    } while (shifter);
+
+    *p = '\0';
+    do {
+        *--p = digit[i % base];
+        i = i / base;
+    } while (i);
+
+    int padding = paddingNo - (int)strlen(b);
+    if (padding < 0)
+        padding = 0;
+
+    if (justify) {
+        while (padding--) {
+            if (zeroPad)
+                b[strlen(b)] = '0';
+            else
+                b[strlen(b)] = ' ';
+        }
+    } else {
+        char a[256] = {0};
+        while (padding--) {
+            if (zeroPad)
+                a[strlen(a)] = '0';
+            else
+                a[strlen(a)] = ' ';
+        }
+
+        strcat(a, b);
+        strcpy(b, a);
+    }
+
+    return b;
+}
+
+char* __int_str(intmax_t i, char b[], int base, bool plusSignIfNeeded, bool spaceSignIfNeeded, int paddingNo, bool justify, bool zeroPad) {
+    const char* digit = "0123456789abcdef";
+    if (base == 17) {
+        base = 16;
+        digit = "0123456789ABCDEF";
     }
 
     char* p = b;
@@ -72,7 +119,7 @@ char* __int_str(intmax_t i, char b[], int base, bool plusSignIfNeeded, bool spac
     return b;
 }
 
-bool IsDigit(char c) { return c >= 0x30 && c <= 0x39; }
+bool IsDigit(char c) { return c >= '0' && c <= '9'; }
 
 int vprintf(const char* format, va_list list) {
     int chars = 0;
@@ -192,49 +239,49 @@ int vprintf(const char* format, va_list list) {
                 switch (length) {
                 case 0: {
                     unsigned int integer = va_arg(list, unsigned int);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'H': {
                     unsigned char integer = va_arg(list, unsigned int);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'h': {
                     unsigned short integer = va_arg(list, unsigned int);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'l': {
                     unsigned long integer = va_arg(list, unsigned long);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'q': {
                     unsigned long long integer = va_arg(list, unsigned long long);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'j': {
                     uintmax_t integer = va_arg(list, uintmax_t);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 'z': {
                     size_t integer = va_arg(list, size_t);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
                 case 't': {
                     ptrdiff_t integer = va_arg(list, ptrdiff_t);
-                    __int_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
+                    __uint_str(integer, intStrBuffer, base, plusSign, spaceNoSign, lengthSpec, leftJustify, zeroPad);
                     chars += Console::DisplayString(intStrBuffer);
                     break;
                 }
