@@ -52,6 +52,12 @@ GDT64:
         dw $ - GDT64 - 1
         dq GDT64 + kernel_vma
 
+mmap: dq 0
+gmode: dq 0
+
+ALIGN 4096
+pml4: times 512 dq 0
+
 ;======================================
 ; BOOT ENTRY POINT
 ;======================================
@@ -59,24 +65,56 @@ GLOBAL _start
 EXTERN kmain
 _start:
     cli
-    lgdt [GDT64.pointer]
 
-    ;mov ax, GDT64.data0
-    ;mov ds, ax
-    ;mov es, ax
-    ;mov fs, ax
-    ;mov gs, ax
-    ;mov ss, ax
+    mov [mmap], rdi
+    mov [gmode], rsi
+
+    mov rbx, cr3
+    mov rsi, pml4
+    mov rcx, 256
+
+    .copyLoop1:
+        mov rax, [rbx]
+        mov [rsi], rax
+        add rbx, 8
+        add rsi, 8
+        loop .copyLoop1
+
+    mov rbx, cr3
+    mov rcx, 256
     
-    ;mov rsp, stack_end
+    .copyLoop2:
+        mov rax, [rbx]
+        mov [rsi], rax
+        add rbx, 8
+        add rsi, 8
+        loop .copyLoop2
+
+    mov rax, pml4
+    mov cr3, rax
+
+
+    lgdt [GDT64.pointer]
+    
+    mov ax, GDT64.data0
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    
+    mov rsp, stack_end
 
     ; Disable PIC
     ;mov al, 0xFF
     ;out 0xA1, al
     ;out 0x21, al
 
-    ;mov rax, kmain
-    ;call rax
+    mov rax, kmain
+    mov rdi, [mmap]
+    mov rsi, [gmode]
+    mov rdx, cr3
+    call rax
 
     .hang:
         cli

@@ -13,7 +13,39 @@ Logger debugLogger;
 Logger warningLogger;
 Logger errorLogger;
 
-extern "C" void kmain() {
+#pragma pack(push)
+#pragma pack(1)
+
+typedef struct {
+    uint64_t size;
+    uint64_t key;
+    uint64_t descSize;
+    uint32_t descVersion;
+    uint32_t reserved;
+    uint64_t mapAddr;
+} MemoryMap_t;
+
+typedef struct {
+    uint32_t horizontalResolution;
+    uint32_t verticalResolution;
+    uint32_t pixelFormat;
+    uint32_t redMask;
+    uint32_t greenMask;
+    uint32_t blueMask;
+    uint32_t reserved;
+    uint32_t pixelsPerScanline;
+    uint64_t frameBufferBase;
+    uint64_t frameBufferSize;
+} GraphicsMode_t;
+
+#pragma pack(pop)
+
+extern "C" void kmain(void* mmap, GraphicsMode_t* gmode) {
+    volatile uint32_t* framebuffer = (volatile uint32_t*)gmode->frameBufferBase;
+
+    for (uint64_t i = 0; i < gmode->frameBufferSize / 4; i++)
+        framebuffer[i] = 0xFFFF00FF;
+
     /*multibootInfo = (multiboot2BootInformation*)((uint64_t)multibootInfo + 0xFFFF800000000000);
 
     Console::SetBackgroundColor(0);
