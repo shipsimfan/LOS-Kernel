@@ -102,8 +102,26 @@ multibootInfo:  dd  0
 ;======================================
 ; BOOT ENTRY POINT
 ;======================================
+BITS 64
+
 GLOBAL _start
 _start:
+    mov eax, 0x00FF0000
+
+    .drawLoop:
+        mov [rdi], eax
+        add rdi, 4
+        sub rsi, 4
+        jnz .drawLoop
+
+
+    .hang2:
+        cli
+        hlt
+        jmp .hang2    
+
+BITS 32
+
     ; Save EBX register
     mov [multibootInfo], ebx
 
