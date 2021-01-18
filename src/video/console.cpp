@@ -1,77 +1,95 @@
 #include <console.h>
-
-#define CONSOLE_WIDTH 80
-#define CONSOLE_HEIGHT 25
+#include <font.h>
 
 namespace Console {
-    volatile char* videoMemory = (volatile char*)0xFFFF8000000B8000;
+    uint32_t foregroundColor, backgroundColor;
+    uint32_t* framebuffer;
+    uint32_t pixelsPerScanline;
+    uint64_t framebufferSize;
 
-    int consoleX = 0;
-    int consoleY = 0;
+    uint32_t width, height;
 
-    uint8_t color = 0x07;
+    uint32_t consoleWidth, consoleHeight;
+    uint32_t consoleX = 0, consoleY = 1;
 
-    void ScrollUp() {
-        int index = 0;
-        for (int y = 0; y < CONSOLE_HEIGHT - 1; y++) {
-            for (int x = 0; x < CONSOLE_WIDTH; x++) {
-                videoMemory[index] = videoMemory[index + (CONSOLE_WIDTH * 2)];
-                videoMemory[index + 1] = videoMemory[index + (CONSOLE_WIDTH * 2) + 1];
-                index += 2;
-            }
-        }
+    void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel) {
+        if (x >= width || y >= height)
+            return;
 
-        for (int x = 0; x < CONSOLE_WIDTH; x++) {
-            videoMemory[index++] = ' ';
-            videoMemory[index++] = color;
-        }
-
-        consoleX = 0;
-        consoleY = CONSOLE_HEIGHT - 1;
+        framebuffer[x + y * pixelsPerScanline] = pixel;
     }
 
-    void DisplayCharacter(char character) {
-        if (character == '\n') { // Newline character
+    void Init(GraphicsInfo* gmode) {
+        foregroundColor = 0xFFFFFFFF;
+        backgroundColor = 0x00000000;
+
+        framebuffer = (uint32_t*)gmode->frameBufferBase;
+        pixelsPerScanline = gmode->pixelsPerScanline;
+        width = gmode->horizontalResolution;
+        height = gmode->verticalResolution;
+        framebufferSize = gmode->frameBufferSize;
+
+        consoleWidth = width / 8;
+        consoleHeight = height / 16;
+
+        ClearScreen();
+    }
+
+    void RenderCharacter(char character, uint32_t x, uint32_t y) {
+        int mask[8] = {1, 2, 4, 8, 16, 32, 64, 128};
+        uint8_t* glyph = (uint8_t*)((uint64_t)font + (uint64_t)character * 16);
+
+        for (uint32_t cy = 0; cy < 16; cy++)
+            for (uint32_t cx = 0; cx < 8; cx++)
+                PlotPixel(x + 8 - cx, y + cy - 12, glyph[cy] & mask[cx] ? foregroundColor : backgroundColor);
+    }
+
+    bool DisplayCharacter(char character) {
+        bool ret = false;
+
+        switch (character) {
+        case '\n':
             consoleX = 0;
             consoleY++;
+            break;
 
-            if (consoleY >= CONSOLE_HEIGHT)
-                ScrollUp();
-        } else {
-            int index = (consoleX + consoleY * CONSOLE_WIDTH) * 2;
-            videoMemory[index] = character;
-            videoMemory[index + 1] = color;
-
+        default:
+            RenderCharacter(character, consoleX * 8, consoleY * 16);
             consoleX++;
-            if (consoleX >= CONSOLE_WIDTH) {
-                consoleX = 0;
-                consoleY++;
-
-                if (consoleY == 0)
-                    ScrollUp();
-            }
+            ret = true;
+            break;
         }
+
+        if (consoleX >= consoleWidth) {
+            consoleX = 0;
+            consoleY++;
+        }
+
+        if (consoleY >= consoleHeight) {
+            consoleX = 0;
+            consoleY = 1;
+        }
+
+        return ret;
     }
 
     int DisplayString(const char* string) {
-        int i;
-        for (i = 0; string[i]; i++)
-            DisplayCharacter(string[i]);
+        int count = 0;
+        for (int i = 0; string[i]; i++)
+            if (DisplayCharacter(string[i]))
+                count++;
 
-        return i;
+        return count;
     }
 
-    void SetForegroundColor(uint8_t fgColor) { color = (color & 0xF0) | (fgColor & 0x0F); }
-    void SetBackgroundColor(uint8_t bgColor) { color = (color & 0x0F) | ((bgColor << 4) & 0xF0); }
+    void SetForegroundColor(uint32_t color) { foregroundColor = color; }
+    void SetBackgroundColor(uint32_t color) { backgroundColor = color; }
 
     void ClearScreen() {
-        consoleX = 0;
-        consoleY = 0;
-
-        for (int i = 0; i < CONSOLE_WIDTH * CONSOLE_HEIGHT; i++)
-            DisplayCharacter(' ');
+        for (uint64_t i = 0; i < framebufferSize / 4; i++)
+            framebuffer[i] = backgroundColor;
 
         consoleX = 0;
-        consoleY = 0;
+        consoleY = 1;
     }
 } // namespace Console
