@@ -13,8 +13,8 @@ Logger debugLogger;
 Logger warningLogger;
 Logger errorLogger;
 
-extern "C" void kmain(multiboot2BootInformation* multibootInfo) {
-    multibootInfo = (multiboot2BootInformation*)((uint64_t)multibootInfo + 0xFFFF800000000000);
+extern "C" void kmain() {
+    /*multibootInfo = (multiboot2BootInformation*)((uint64_t)multibootInfo + 0xFFFF800000000000);
 
     Console::SetBackgroundColor(0);
     Console::ClearScreen();
@@ -34,7 +34,7 @@ extern "C" void kmain(multiboot2BootInformation* multibootInfo) {
         errorLogger.Log("Unable to continue boot! Fatal eror while starting the memory manager!");
         while (1)
             ;
-    }
+    }*/
 
     while (1)
         ;
