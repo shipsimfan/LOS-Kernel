@@ -1,4 +1,5 @@
 #include <console.h>
+#include <dev.h>
 #include <interrupt.h>
 #include <logger.h>
 #include <mem.h>
@@ -13,7 +14,7 @@ Logger debugLogger;
 Logger warningLogger;
 Logger errorLogger;
 
-extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode) {
+extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp) {
     Console::Init(gmode);
 
     infoLogger.Set("Kernel", Logger::TYPE::INFORMATION, 0xFFFFFFFF);
@@ -33,9 +34,7 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode) {
             ;
     }
 
-    volatile uint32_t* ptr = (uint32_t*)(KERNEL_VMA + 0x100000000);
-    ptr[0] = 0xDEADBEEF;
-    infoLogger.Log("Ptr[0] = %#x", ptr[0]);
+    DeviceManager::Init(rdsp);
 
     while (1)
         ;

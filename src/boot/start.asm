@@ -54,6 +54,7 @@ GDT64:
 
 mmap: dq 0
 gmode: dq 0
+rdsp: dq 0
 
 ALIGN 4096
 pml4: times 512 dq 0
@@ -68,6 +69,7 @@ _start:
 
     mov [mmap], rdi
     mov [gmode], rsi
+    mov [rdsp], rdx
 
     mov rbx, cr3
     mov rsi, pml4
@@ -120,6 +122,7 @@ _startGDT:
     mov rax, kmain
     mov rdi, [mmap]
     mov rsi, [gmode]
+    mov rdx, [rdsp]
     mov rdx, cr3
     call rax
 
