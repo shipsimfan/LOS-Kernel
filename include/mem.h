@@ -1,7 +1,7 @@
 #pragma once
 
-#include <multiboot2.h>
+#include <mem/physical.h>
 
 namespace MemoryManager {
-    bool Init(multiboot2BootInformation* bootInfo);
+    bool Init(MemoryMap* mmap);
 }

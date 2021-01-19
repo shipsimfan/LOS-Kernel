@@ -93,8 +93,15 @@ _start:
     mov rax, pml4
     mov cr3, rax
 
-
     lgdt [GDT64.pointer]
+
+    mov rax, GDT64.code0
+    push rax
+    mov rax, _startGDT
+    push rax
+    ret
+
+_startGDT:
     
     mov ax, GDT64.data0
     mov ds, ax

@@ -29,4 +29,7 @@ namespace Console {
     void SetForegroundColor(uint32_t color);
     void SetBackgroundColor(uint32_t color);
     void ClearScreen();
+
+    uint64_t GetFramebuffer();
+    uint64_t GetFramebufferSize();
 } // namespace Console

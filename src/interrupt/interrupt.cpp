@@ -51,7 +51,7 @@ namespace InterruptHandler {
     void InfoDump(CPUState cpu, StackState stack) {
         printf("rax: 0x%llx    rbx: 0x%llx    rcx: 0x%llx\n", cpu.rax, cpu.rbx, cpu.rcx);
         printf("rdx: 0x%llx    rsi: 0x%llx    rdi: 0x%llx\n", cpu.rdx, cpu.rsi, cpu.rdi);
-        printf("rsp: 0x%llx    rbp: 0x%llx    r8:  0x%llx\n", cpu.rsp, cpu.rbp, cpu.r8);
+        printf("               rbp: 0x%llx    r8:  0x%llx\n", cpu.rbp, cpu.r8);
         printf("r9:  0x%llx    r10: 0x%llx    r11: 0x%llx\n", cpu.r9, cpu.r10, cpu.r11);
         printf("r12: 0x%llx    r13: 0x%llx    r14: 0x%llx\n", cpu.r12, cpu.r13, cpu.r14);
         printf("r15: 0x%llx    rip: 0x%llx    cs:  0x%llx\n", cpu.r15, stack.rip, stack.cs);
@@ -64,7 +64,7 @@ namespace InterruptHandler {
                 return;
         } else {
             errorLogger.Log("%s exception (%i) has occurred!", exceptions[stack.interrupt], stack.interrupt);
-            errorLogger.Log("Error code: %x", stack.errorCode);
+            errorLogger.Log("Error code: %#x", stack.errorCode);
 
             errorLogger.Log("Core dump:");
             InfoDump(cpu, stack);

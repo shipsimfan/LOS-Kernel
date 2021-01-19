@@ -13,21 +13,7 @@ Logger debugLogger;
 Logger warningLogger;
 Logger errorLogger;
 
-#pragma pack(push)
-#pragma pack(1)
-
-typedef struct {
-    uint64_t size;
-    uint64_t key;
-    uint64_t descSize;
-    uint32_t descVersion;
-    uint32_t reserved;
-    uint64_t mapAddr;
-} MemoryMap_t;
-
-#pragma pack(pop)
-
-extern "C" void kmain(void* mmap, Console::GraphicsInfo* gmode) {
+extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode) {
     Console::Init(gmode);
 
     infoLogger.Set("Kernel", Logger::TYPE::INFORMATION, 0xFFFFFFFF);
@@ -41,11 +27,15 @@ extern "C" void kmain(void* mmap, Console::GraphicsInfo* gmode) {
 
     InterruptHandler::Init();
 
-    /*if (!MemoryManager::Init(multibootInfo)) {
+    if (!MemoryManager::Init(mmap)) {
         errorLogger.Log("Unable to continue boot! Fatal eror while starting the memory manager!");
         while (1)
             ;
-    }*/
+    }
+
+    volatile uint32_t* ptr = (uint32_t*)(KERNEL_VMA + 0x100000000);
+    ptr[0] = 0xDEADBEEF;
+    infoLogger.Log("Ptr[0] = %#x", ptr[0]);
 
     while (1)
         ;

@@ -1,4 +1,5 @@
 #include <console.h>
+
 #include <font.h>
 
 namespace Console {
@@ -23,7 +24,7 @@ namespace Console {
         foregroundColor = 0xFFFFFFFF;
         backgroundColor = 0x00000000;
 
-        framebuffer = (uint32_t*)gmode->frameBufferBase;
+        framebuffer = (uint32_t*)((uint64_t)gmode->frameBufferBase + 0xFFFF800000000000);
         pixelsPerScanline = gmode->pixelsPerScanline;
         width = gmode->horizontalResolution;
         height = gmode->verticalResolution;
@@ -92,4 +93,8 @@ namespace Console {
         consoleX = 0;
         consoleY = 1;
     }
+
+    uint64_t GetFramebuffer() { return (uint64_t)framebuffer; }
+
+    uint64_t GetFramebufferSize() { return framebufferSize; }
 } // namespace Console
