@@ -11,7 +11,7 @@ uint64_t KERNEL_BOTTOM;
 uint64_t KERNEL_TOP;
 uint64_t KERNEL_SIZE;
 
-bool MemoryManager::Init(multiboot2BootInformation* bootInfo) {
+bool MemoryManager::Init(MemoryMap* mmap) {
     infoLogger.Log("Initializing memory manager . . .");
 
     KERNEL_LMA = (uint64_t)&__KERNEL_LMA;
@@ -20,7 +20,7 @@ bool MemoryManager::Init(multiboot2BootInformation* bootInfo) {
     KERNEL_TOP = (uint64_t)&__KERNEL_TOP;
     KERNEL_SIZE = KERNEL_TOP - KERNEL_BOTTOM;
 
-    if (!Physical::Init(bootInfo)) {
+    if (!Physical::Init(mmap)) {
         errorLogger.Log("Failed to initialize physical memory manager!");
         return false;
     }

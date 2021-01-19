@@ -54,7 +54,7 @@ common_interrupt_handler:
     push rdx
     push rsi
     push rdi
-    push rsp
+    ;push rsp
     push rbp
     push r8
     push r9
@@ -80,7 +80,7 @@ common_interrupt_handler:
     pop r9
     pop r8
     pop rbp
-    pop rsp
+    ;pop rsp
     pop rdi
     pop rsi
     pop rdx
@@ -89,6 +89,8 @@ common_interrupt_handler:
     pop rax
 
     add rsp, 16
+
+    mov QWORD [rsp + 8], 0x08
 
     iretq
 

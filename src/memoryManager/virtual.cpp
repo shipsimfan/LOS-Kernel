@@ -1,13 +1,12 @@
 #include <mem/virtual.h>
 
+#include <console.h>
 #include <interrupt.h>
 #include <logger.h>
 #include <mem/physical.h>
 #include <string.h>
 
 bool PageFaultHandler(InterruptHandler::CPUState cpu, InterruptHandler::StackState stack) {
-    debugLogger.Log("%#x", stack.errorCode & 1);
-
     if ((stack.errorCode & 1) == 0) {
         if (cpu.cr2 >= KERNEL_VMA) {
             physAddr_t physAddr = MemoryManager::Physical::AllocNextFreePage();
@@ -60,57 +59,73 @@ namespace MemoryManager {
 
             // Identity map all of memory
             uint64_t numPages = Physical::GetNumPages();
-            uint64_t numPageTables = numPages / 512;
-            uint64_t numPageDirectories = numPageTables / 512;
+            uint64_t numPageTables = (numPages + 511) / 512;
+            uint64_t numPageDirectories = (numPageTables + 511) / 512;
+
+            InterruptHandler::SetExceptionHandler(0xE, PageFaultHandler);
 
             // Allocate Kernel PML4
             kernelPML4 = (PML4*)(Physical::AllocNextFreePage() + KERNEL_VMA);
             memset(kernelPML4, 0, PAGE_SIZE);
 
-            // Allocate 256 PDPTs
+            // PML4* bootPML4 = GetCurrentPML4();
+            // for (int i = 256; i < 512; i++)
+            //    kernelPML4->entries[i] = bootPML4->entries[i];
+
+            // Allocate Kernel PDPTs
             for (int pml4i = 256; pml4i < 512; pml4i++) {
                 kernelPML4->SetEntry(pml4i, Physical::AllocNextFreePage(), true, true);
                 memset(kernelPML4->GetEntry(pml4i), 0, PAGE_SIZE);
 
                 if (pml4i == 256) {
                     PDPT* pdpt = kernelPML4->GetEntry(pml4i);
-                    uint64_t addr = 0;
-                    uint64_t pages = 0;
-                    uint64_t pageTables = 0;
-                    bool done = false;
 
                     // Allocate page directories
+                    bool done = false;
+                    uint64_t totalPageTables = 0;
+                    uint64_t totalPages = 0;
+                    uint64_t addr = 3;
                     for (uint64_t pdpti = 0; pdpti < numPageDirectories && !done; pdpti++) {
                         pdpt->SetEntry(pdpti, Physical::AllocNextFreePage(), true, true);
                         PD* pd = pdpt->GetEntry(pdpti);
                         memset(pd, 0, PAGE_SIZE);
 
                         // Allocate page tables
-                        for (int pdi = 0; pdi < 512 && !done; pdi++) {
+                        for (uint64_t pdi = 0; pdi < 512 && !done; pdi++) {
                             pd->SetEntry(pdi, Physical::AllocNextFreePage(), true, true);
                             PT* pt = pd->GetEntry(pdi);
+                            memset(pt, 0, PAGE_SIZE);
 
                             // Allocate pages
-                            for (int pti = 0; pti < 512 && !done; pti++) {
+                            for (uint64_t pti = 0; pti < 512 && !done; pti++) {
                                 pt->SetEntry(pti, addr, true, true);
-                                addr += PAGE_SIZE;
-                                pages++;
 
-                                if (pages >= numPages)
+                                addr += PAGE_SIZE;
+                                totalPages++;
+
+                                if (totalPages >= numPages)
                                     done = true;
                             }
 
-                            pageTables++;
-                            if (pageTables >= numPageTables)
+                            totalPageTables++;
+                            if (totalPageTables >= numPageTables)
                                 done = true;
                         }
                     }
                 }
             }
+
             SetCurrentPML4((uint64_t)kernelPML4 - KERNEL_VMA);
             currentPML4 = kernelPML4;
 
-            InterruptHandler::SetExceptionHandler(0xE, PageFaultHandler);
+            // Allocate framebuffer
+            uint64_t virtAddr = Console::GetFramebuffer();
+            uint64_t physAddr = virtAddr - KERNEL_VMA;
+
+            uint64_t framebufferPageSize = Console::GetFramebufferSize() / PAGE_SIZE;
+
+            for (uint64_t i = 0; i < framebufferPageSize; i++, virtAddr += PAGE_SIZE, physAddr += PAGE_SIZE)
+                AllocatePage((virtAddr_t)virtAddr, physAddr, true);
 
             infoLogger.Log("Virtual memory manager initialized!");
 
@@ -166,7 +181,7 @@ namespace MemoryManager {
             PT* pt = pd->GetEntry(pdIndex);
 
             // Allocate Page
-            pt->SetEntry(ptIndex, Physical::AllocNextFreePage(), write, supervisor);
+            pt->SetEntry(ptIndex, physAddr, write, supervisor);
             MemoryManager::InvalidatePage(virtAddr);
         }
 

@@ -13,16 +13,13 @@ Logger debugLogger;
 Logger warningLogger;
 Logger errorLogger;
 
-extern "C" void kmain(multiboot2BootInformation* multibootInfo) {
-    multibootInfo = (multiboot2BootInformation*)((uint64_t)multibootInfo + 0xFFFF800000000000);
+extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode) {
+    Console::Init(gmode);
 
-    Console::SetBackgroundColor(0);
-    Console::ClearScreen();
-
-    infoLogger.Set("Kernel", Logger::TYPE::INFORMATION, Logger::COLOR::WHITE);
-    debugLogger.Set("Kernel", Logger::TYPE::DEBUGGER, Logger::COLOR::WHITE);
-    warningLogger.Set("Kernel", Logger::TYPE::WARNING, Logger::COLOR::YELLOW);
-    errorLogger.Set("Kernel", Logger::TYPE::ERROR, Logger::COLOR::RED);
+    infoLogger.Set("Kernel", Logger::TYPE::INFORMATION, 0xFFFFFFFF);
+    debugLogger.Set("Kernel", Logger::TYPE::DEBUGGER, 0xFFFFFFFF);
+    warningLogger.Set("Kernel", Logger::TYPE::WARNING, 0xFFFFFF00);
+    errorLogger.Set("Kernel", Logger::TYPE::ERROR, 0xFFFF0000);
 
     infoLogger.Log("Unamed Operating System");
     infoLogger.Log("Written By: Lance Hart");
@@ -30,11 +27,15 @@ extern "C" void kmain(multiboot2BootInformation* multibootInfo) {
 
     InterruptHandler::Init();
 
-    if (!MemoryManager::Init(multibootInfo)) {
+    if (!MemoryManager::Init(mmap)) {
         errorLogger.Log("Unable to continue boot! Fatal eror while starting the memory manager!");
         while (1)
             ;
     }
+
+    volatile uint32_t* ptr = (uint32_t*)(KERNEL_VMA + 0x100000000);
+    ptr[0] = 0xDEADBEEF;
+    infoLogger.Log("Ptr[0] = %#x", ptr[0]);
 
     while (1)
         ;

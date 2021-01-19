@@ -5,7 +5,7 @@
 
 const char* typeStrings[] = {"INFO", "DEBUG", "WARN", "ERROR"};
 
-void Logger::Set(const char* name, TYPE type, COLOR color) {
+void Logger::Set(const char* name, TYPE type, uint32_t color) {
     this->name = name;
     this->color = color;
     this->type = type;
