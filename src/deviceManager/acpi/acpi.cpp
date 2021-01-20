@@ -55,8 +55,35 @@ namespace DeviceManager { namespace ACPI {
                 systemDescriptorTables[i] = (SDTHeader*)((uint64_t)xsdt->GetEntry(i) + KERNEL_VMA);
         }
 
-        for (uint64_t i = 0; i < numDescriptorTables; i++)
-            infoLogger.Log("ACPI Table Signature: %c%c%c%c", systemDescriptorTables[i]->signature[0], systemDescriptorTables[i]->signature[1], systemDescriptorTables[i]->signature[2], systemDescriptorTables[i]->signature[3]);
+        // Locate the FADT
+        FADT* fadt = nullptr;
+        for (uint64_t i = 0; i < numDescriptorTables; i++) {
+            if (memcmp(systemDescriptorTables[i]->signature, "FACP", 4) == 0) {
+                fadt = (FADT*)systemDescriptorTables[i];
+                break;
+            }
+        }
+
+        if (fadt == nullptr) {
+            errorLogger.Log("Unable to locate Fixed ACPI Descriptor Table!");
+            return false;
+        }
+
+        debugLogger.Log("FADT located at %#llx", fadt);
+
+        // Get the DSDT
+        DSDT* dsdt = nullptr;
+        if (fadt->Xdsdt != 0)
+            dsdt = (DSDT*)(fadt->Xdsdt + KERNEL_VMA);
+        else if (fadt->dsdt != 0)
+            dsdt = (DSDT*)((uint64_t)fadt->dsdt + KERNEL_VMA);
+
+        if (dsdt == nullptr) {
+            errorLogger.Log("Inavlid DSDT entries!");
+            return false;
+        }
+
+        debugLogger.Log("DSDT located at %#llx", dsdt);
 
         return true;
     }
