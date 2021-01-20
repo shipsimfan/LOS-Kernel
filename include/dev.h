@@ -1,5 +1,5 @@
 #pragma once
 
 namespace DeviceManager {
-    void Init(void* rdsp);
+    bool Init(void* rdsp);
 }

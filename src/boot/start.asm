@@ -123,7 +123,6 @@ _startGDT:
     mov rdi, [mmap]
     mov rsi, [gmode]
     mov rdx, [rdsp]
-    mov rdx, cr3
     call rax
 
     .hang:

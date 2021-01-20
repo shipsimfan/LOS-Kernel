@@ -35,14 +35,11 @@ namespace MemoryManager { namespace Physical {
         for (uint64_t ptr = mmap->mapAddr; ptr < mmap->mapAddr + mmap->size; ptr += mmap->descSize) {
             desc = (MemoryDescriptor*)ptr;
 
-            if (desc->type == MemoryType::BOOT_SERVICES_CODE || desc->type == MemoryType::BOOT_SERVICES_DATA || desc->type == MemoryType::CONVENTIONAL || desc->type == MemoryType::PERSISTENT) {
-                size_t i = desc->physicalAddress / PAGE_SIZE / 64;
-                if (desc->physicalAddress < nextFreePage)
-                    nextFreePage = desc->physicalAddress;
-
-                for (size_t j = 0; j < desc->numberOfPages; j += 64, i++) {
-                    bitmap[i] = 0;
-                    numFreePages += 64;
+            if (desc->type == MemoryType::BOOT_SERVICES_CODE || desc->type == MemoryType::CONVENTIONAL || desc->type == MemoryType::PERSISTENT) {
+                uint64_t phys = desc->physicalAddress;
+                for (uint64_t i = 0; i < desc->numberOfPages; i++, phys += PAGE_SIZE) {
+                    FreePage(phys);
+                    numFreePages++;
                 }
             }
         }

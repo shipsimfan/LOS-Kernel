@@ -3,5 +3,5 @@
 #include <dev/acpi.h>
 
 namespace DeviceManager {
-    void Init(void* rdsp) { ACPI::Init(rdsp); }
+    bool Init(void* rdsp) { return ACPI::Init((ACPI::RDSP*)rdsp); }
 } // namespace DeviceManager
