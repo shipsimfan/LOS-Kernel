@@ -133,5 +133,5 @@ _startGDT:
 SECTION .bss
 
 stack_begin:
-resb 8192
+resb 32768
 stack_end:

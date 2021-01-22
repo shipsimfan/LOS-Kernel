@@ -50,8 +50,9 @@ namespace Console {
 
         switch (character) {
         case '\n':
-            consoleX = 0;
-            consoleY++;
+            for (; consoleX < consoleWidth; consoleX++)
+                RenderCharacter(' ', consoleX * 8, consoleY * 16);
+
             break;
 
         default:

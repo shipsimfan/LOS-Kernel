@@ -50,6 +50,10 @@ namespace InterruptHandler {
     extern "C" IDTDescr idt[256];
 
     void Init();
+    void InitAPIC(void* madt);
 
     void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState));
+    void SetExternalInterruptHandler(int interrupt, void (*interruptHandler)(void*));
+
+    void StopInterrupts();
 } // namespace InterruptHandler

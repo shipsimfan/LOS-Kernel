@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-int printf(const char* format, ...) {
+extern "C" int printf(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vprintf(format, args);
@@ -12,7 +12,7 @@ int printf(const char* format, ...) {
     return ret;
 }
 
-char* __uint_str(uintmax_t i, char b[], int base, bool plusSignIfNeeded, bool spaceSignIfNeeded, int paddingNo, bool justify, bool zeroPad) {
+extern "C" char* __uint_str(uintmax_t i, char b[], int base, bool plusSignIfNeeded, bool spaceSignIfNeeded, int paddingNo, bool justify, bool zeroPad) {
     const char* digit = "0123456789abcdef";
     if (base == 17) {
         base = 16;

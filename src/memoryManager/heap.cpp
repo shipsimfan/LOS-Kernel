@@ -1,9 +1,10 @@
 #include <mem/heap.h>
 
 #include <mem/physical.h>
+#include <stdio.h>
 
-void* malloc(size_t size) { return MemoryManager::Heap::malloc(size); }
-void free(void* ptr) { MemoryManager::Heap::free(ptr); }
+extern "C" void* malloc(size_t size) { return MemoryManager::Heap::malloc(size); }
+extern "C" void free(void* ptr) { MemoryManager::Heap::free(ptr); }
 
 namespace MemoryManager { namespace Heap {
     uint64_t top;
