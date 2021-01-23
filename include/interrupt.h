@@ -54,6 +54,7 @@ namespace InterruptHandler {
 
     void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState));
     void SetExternalInterruptHandler(int interrupt, void (*interruptHandler)(void*));
+    void ClearExternalInterruptHandler(int interrupt);
 
     void StopInterrupts();
 } // namespace InterruptHandler

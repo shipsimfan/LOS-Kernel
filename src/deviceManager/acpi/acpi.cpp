@@ -65,16 +65,9 @@ namespace DeviceManager { namespace ACPI {
         ((DeviceInfo*)device->driverInfo)->name = devInfo->Name;
     }
 
-    ACPI_STATUS WalkCallback(ACPI_HANDLE object, UINT32 level, void* context, void** ret) {
-        Device* newDevice = (Device*)malloc(sizeof(Device));
-        newDevice->driverInfo = (void*)object;
-
-        RegisterDevice(newDevice, &ACPIDriver);
-
-        return AE_OK;
-    }
-
     bool RegisterACPIDriver(void* rdsp) {
+        infoLogger.Log("Initializing ACPI . . . ");
+
         rdspAddr = (ACPI_PHYSICAL_ADDRESS)rdsp;
 
         ACPIDriver.signature = DEVICE_DRIVER_SIGNATURE_ACPI;
@@ -92,7 +85,7 @@ namespace DeviceManager { namespace ACPI {
 
         // Initialize APIC
         ACPI_TABLE_HEADER* madt;
-        ACPI_STATUS status = AcpiGetTable("APIC", 1, &madt);
+        ACPI_STATUS status = AcpiGetTable((char*)"APIC", 1, &madt);
         if (ACPI_FAILURE(status)) {
             errorLogger.Log("Error while getting MADT! (%i)", status);
             return false;
@@ -100,13 +93,7 @@ namespace DeviceManager { namespace ACPI {
 
         InterruptHandler::InitAPIC(madt);
 
-        // Walk ACPICA Namespace
-        void* ret = nullptr;
-        status = AcpiGetDevices(nullptr, WalkCallback, nullptr, &ret);
-        if (ACPI_FAILURE(status)) {
-            errorLogger.Log("There was an error while walking ACPI namespace! (%i)", status);
-            return false;
-        }
+        infoLogger.Log("ACPI initialized!");
 
         return true;
     }

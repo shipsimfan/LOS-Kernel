@@ -1,5 +1,6 @@
 #include <dev.h>
 #include <dev/acpi.h>
+#include <dev/pci.h>
 #include <interrupt.h>
 #include <logger.h>
 #include <stdlib.h>
@@ -10,6 +11,9 @@ namespace DeviceManager {
     bool Init(void* rdsp) {
         infoLogger.Log("Initializing device manager . . .");
         if (!ACPI::RegisterACPIDriver(rdsp))
+            return false;
+
+        if (!PCI::RegisterPCIDriver())
             return false;
 
         infoLogger.Log("Device manager initialized!");

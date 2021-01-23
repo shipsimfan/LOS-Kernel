@@ -6,6 +6,7 @@
 #include <mem/virtual.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define LAPIC_ID 0x20 / 4
 #define LAPIC_VERSION 0x30 / 4
@@ -185,6 +186,8 @@ namespace InterruptHandler {
         for (int i = 0; i < 32; i++)
             exceptionHandlers[i] = nullptr;
 
+        memset(idt, 0, sizeof(idt));
+
         InstallInterruptHandler(0, (uint64_t)InterruptHandler0);
         InstallInterruptHandler(1, (uint64_t)InterruptHandler1);
         InstallInterruptHandler(2, (uint64_t)InterruptHandler2);
@@ -269,10 +272,10 @@ namespace InterruptHandler {
         EnableAPIC();
 
         // Initialize LAPIC timer
-        localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0xFF + APIC_SW_ENABLE;
-        localAPIC[LAPIC_TIMER_DIV] = 3;
-        localAPIC[LAPIC_TIMER_LVT] = 0x20020;
-        localAPIC[LAPIC_TIMER_INITCNT] = 1000;
+        // localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0xFF + APIC_SW_ENABLE;
+        // localAPIC[LAPIC_TIMER_DIV] = 3;
+        // localAPIC[LAPIC_TIMER_LVT] = 0x20020;
+        // localAPIC[LAPIC_TIMER_INITCNT] = 1000;
     }
 
     void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState)) {
@@ -282,11 +285,23 @@ namespace InterruptHandler {
         exceptionHandlers[exception] = exceptionHandler;
     }
 
-    void SetInterruptHandler(int interrupt, void (*interruptHandler)(void*)) {
+    void SetExternalInterruptHandler(int interrupt, void (*interruptHandler)(void*)) {
         if (interrupt < 32 || interrupt > 255)
             return;
 
         InstallInterruptHandler(interrupt, (uint64_t)interruptHandler);
+    }
+
+    void ClearExternalInterruptHandler(int interrupt) {
+        if (interrupt < 32 || interrupt > 255)
+            return;
+
+        idt[interrupt].offset1 = 0;
+        idt[interrupt].selector = 0;
+        idt[interrupt].ist = 0;
+        idt[interrupt].typeAttr = 0;
+        idt[interrupt].offset2 = 0;
+        idt[interrupt].offset3 = 0;
     }
 
     void StopInterrupts() { DisableInterrupts(); }
