@@ -31,6 +31,35 @@ EnableInterrupts:
     sti
     ret
 
+GLOBAL SpuriousISRHandler
+SpuriousISRHandler:
+    iretq
+
+GLOBAL TimerISRHandler
+EXTERN TimerISR
+TimerISRHandler:
+    call TimerISR
+    iretq
+
+GLOBAL EnableAPIC
+EnableAPIC:
+    push rdx
+    push rcx
+    push rax
+
+    mov ecx, 0x1B
+    rdmsr
+
+    xor edx, edx
+    or eax, 1
+    wrmsr
+
+    pop rax
+    pop rcx
+    pop rdx
+
+    ret
+
 %macro no_error_code_interrupt_handler 1
 GLOBAL InterruptHandler%1
 InterruptHandler%1:

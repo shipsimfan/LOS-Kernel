@@ -1,9 +1,47 @@
 #include <interrupt.h>
 
+#include <dev.h>
 #include <logger.h>
 #include <mem/defs.h>
+#include <mem/virtual.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define LAPIC_ID 0x20 / 4
+#define LAPIC_VERSION 0x30 / 4
+
+#define LAPIC_TASK_PRIORITY 0x80 / 4
+#define LAPIC_ARBITRATION_PRIORITY 0x90 / 4
+#define LAPIC_PROCESSOR_PRIORITY 0xA0 / 4
+#define LAPIC_EOI 0xB0 / 4
+#define LAPIC_REMOTE_READ 0xC0 / 4
+#define LAPIC_LOGICAL_DESTINATION 0xD0 / 4
+#define LAPIC_DESTINATION_FORMAT 0xE0 / 4
+#define LAPIC_SPURIOUS_INTERRUPT_VECTOR 0xF0 / 4
+#define LAPIC_IN_SERVICE_START 0x100 / 4
+
+#define LAPIC_TRIGGER_MODE_START 0x180 / 4
+
+#define LAPIC_INTERRUPT_REQUEST_START 0x200 / 4
+
+#define LAPIC_ERROR_STATUS 0x280 / 4
+
+#define LAPIC_CMCI_LVT 0x2F0 / 4
+#define LAPIC_INTERRUPT_CONTROL 0x300 / 4
+#define LAPIC_TIMER_LVT 0x320 / 4
+#define LAPIC_THERMAL_SENSOR_LVT 0x330 / 4
+#define LAPIC_PERFORMANCE_MONITOR_COUNTER_LVT 0x340 / 4
+#define LAPIC_LINT0_LVT 0x350 / 4
+#define LAPIC_LINT1_LVT 0x360 / 4
+#define LAPIC_ERROR_LVT 0x370 / 4
+#define LAPIC_TIMER_INITCNT 0x380 / 4
+#define LAPIC_TIMER_CURCNT 0x390 / 4
+
+#define LAPIC_TIMER_DIV 0x3E0 / 4
+
+#define APIC_DISABLE 0x10000
+#define APIC_NMI (4 << 8)
+#define APIC_SW_ENABLE 0x100
 
 extern "C" void InterruptHandler0();
 extern "C" void InterruptHandler1();
@@ -42,6 +80,11 @@ extern "C" void InstallIDT();
 
 extern "C" void DisableInterrupts();
 extern "C" void EnableInterrupts();
+
+extern "C" void SpuriousISRHandler();
+extern "C" void TimerISRHandler();
+
+extern "C" void EnableAPIC();
 
 namespace InterruptHandler {
 #pragma pack(push)
@@ -93,7 +136,7 @@ namespace InterruptHandler {
 
     bool (*exceptionHandlers[32])(CPUState, StackState);
 
-    uint64_t localAPICAddress;
+    uint32_t* localAPIC;
     IOAPIC* ioapics;
 
     void InfoDump(CPUState cpu, StackState stack) {
@@ -121,6 +164,8 @@ namespace InterruptHandler {
         while (1)
             ;
     }
+
+    extern "C" void TimerISR() { localAPIC[LAPIC_EOI] = 0; }
 
     void InstallInterruptHandler(int interrupt, uint64_t offset) {
         idt[interrupt].offset1 = offset & 0xFFFF;
@@ -183,15 +228,15 @@ namespace InterruptHandler {
     void InitAPIC(void* madt) {
         MADT* madtP = (MADT*)madt;
 
-        localAPICAddress = (uint64_t)madtP->localAPICAddress + KERNEL_VMA;
+        // Save and allocate LAPIC address
+        localAPIC = (uint32_t*)((uint64_t)madtP->localAPICAddress + KERNEL_VMA);
+        MemoryManager::Virtual::AllocatePage(localAPIC, madtP->localAPICAddress, true);
 
+        // Find all IOAPICs
         uint64_t entry = (uint64_t)&madtP->firstEntry;
         MADTEntry* entryPtr = (MADTEntry*)entry;
         while (entry < (uint64_t)madtP + (madtP->length)) {
-            if (entryPtr->type == 0) {
-                LAPICEntry* lapic = (LAPICEntry*)entryPtr;
-                debugLogger.Log("APIC %i for processor %i", lapic->apicID, lapic->processorID);
-            } else if (entryPtr->type == 1) {
+            if (entryPtr->type == 1) {
                 IOAPICEntry* ioapic = (IOAPICEntry*)entryPtr;
                 IOAPIC* newIOAPIC = (IOAPIC*)malloc(sizeof(IOAPIC));
                 newIOAPIC->id = ioapic->ioAPICID;
@@ -205,6 +250,29 @@ namespace InterruptHandler {
             entry += entryPtr->length;
             entryPtr = (MADTEntry*)entry;
         }
+
+        // Setup APIC ISRs
+        InstallInterruptHandler(0xFF, (uint64_t)SpuriousISRHandler);
+        InstallInterruptHandler(32, (uint64_t)TimerISRHandler);
+
+        // Initialize LAPIC
+        localAPIC[LAPIC_DESTINATION_FORMAT] = 0xFFFFFFFF;
+        localAPIC[LAPIC_LOGICAL_DESTINATION] &= 0x00FFFFFF;
+        localAPIC[LAPIC_LOGICAL_DESTINATION] |= 1;
+
+        localAPIC[LAPIC_TIMER_LVT] = APIC_DISABLE;
+        localAPIC[LAPIC_PERFORMANCE_MONITOR_COUNTER_LVT] = APIC_NMI;
+        localAPIC[LAPIC_LINT0_LVT] = APIC_DISABLE;
+        localAPIC[LAPIC_LINT1_LVT] = APIC_DISABLE;
+        localAPIC[LAPIC_TASK_PRIORITY] = 0;
+
+        EnableAPIC();
+
+        // Initialize LAPIC timer
+        localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0xFF + APIC_SW_ENABLE;
+        localAPIC[LAPIC_TIMER_DIV] = 3;
+        localAPIC[LAPIC_TIMER_LVT] = 0x20020;
+        localAPIC[LAPIC_TIMER_INITCNT] = 1000;
     }
 
     void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState)) {
