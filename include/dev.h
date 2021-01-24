@@ -5,7 +5,7 @@
 namespace DeviceManager {
 #define DEVICE_DRIVER_SIGNATURE_UNKNOWN 0
 #define DEVICE_DRIVER_SIGNATURE_ACPI 1
-#define DEVICE_DRIVER_SIGNATURE_HPET 2
+#define DEVICE_DRIVER_SIGNATURE_PCI 2
 
     struct DeviceDriver;
 

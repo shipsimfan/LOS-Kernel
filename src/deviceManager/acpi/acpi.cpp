@@ -61,8 +61,7 @@ namespace DeviceManager { namespace ACPI {
         device->name[9] = (devInfo->Name >> 24) & 0xFF;
         device->name[10] = 0;
 
-        device->driverInfo = malloc(sizeof(DeviceInfo));
-        ((DeviceInfo*)device->driverInfo)->name = devInfo->Name;
+        device->driverInfo = nullptr;
     }
 
     bool RegisterACPIDriver(void* rdsp) {

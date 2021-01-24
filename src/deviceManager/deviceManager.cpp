@@ -83,6 +83,15 @@ namespace DeviceManager {
         return ret;
     }
 
+    DeviceDriver* GetDeviceDriver(uint64_t signature) {
+        if (signature == DEVICE_DRIVER_SIGNATURE_ACPI)
+            return driverRoot;
+
+        errorLogger.Log("NOT IMPLEMENTED GetDeviceDriver()");
+        // TODO: Implement breadth-first search for device drivers
+        return nullptr;
+    }
+
     void outb(uint16_t port, uint8_t val) { asm volatile("outb %0, %1" : : "a"(val), "Nd"(port)); }
 
     void outw(uint16_t port, uint16_t val) { asm volatile("outw %0, %1" : : "a"(val), "Nd"(port)); }
