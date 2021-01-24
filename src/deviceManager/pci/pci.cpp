@@ -2,18 +2,53 @@
 
 #include <dev.h>
 #include <logger.h>
+#include <stdlib.h>
 
 namespace DeviceManager { namespace PCI {
     DeviceDriver PCIDriver;
 
+    struct PCIRegisterInfo {
+        uint8_t bus;
+        uint8_t device;
+        uint8_t function;
+    };
+
     // bool verifyDevice(Device* device)
     // Returns true if this driver can initialize the device
-    bool PCIVerifyDevice(Device*) { return false; }
+    bool PCIVerifyDevice(Device* device) { return device->driver == &PCIDriver; }
 
     // bool registerDevice(Device* device)
     // Registers a device to this driver
     // Returns false on error
-    void PCIRegisterDevice(Device*) {}
+    void PCIRegisterDevice(Device* device) {
+        PCIRegisterInfo* tmpInfo = (PCIRegisterInfo*)device->driverInfo;
+        uint8_t headerType = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_HEADER_TYPE);
+        PCIDeviceInfo* devInfo;
+        if(headerType == 0) {
+            StandardPCIDeviceInfo* stdInfo = (StandardPCIDeviceInfo*)malloc(sizeof(StandardPCIDeviceInfo));
+            stdInfo->baseAddr0 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_0);
+            stdInfo->baseAddr1 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_1);
+            stdInfo->baseAddr2 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_2);
+            stdInfo->baseAddr3 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_3);
+            stdInfo->baseAddr4 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_4);
+            stdInfo->baseAddr5 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_5);
+
+            stdInfo->interruptLine = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_LINE);
+            stdInfo->interruptPin = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_PIN);
+            devInfo = (PCIDeviceInfo*) stdInfo;
+        } else
+            devInfo = (PCIDeviceInfo*)malloc(sizeof(PCIDeviceInfo));
+
+        devInfo->bus = tmpInfo->bus;
+        devInfo->device = tmpInfo->device;
+        devInfo->function = tmpInfo->function;
+        devInfo->headerType = headerType;
+        devInfo->vendorID = ReadConfigW(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_VENDOR_ID);
+        devInfo->deviceID = ReadConfigW(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_DEVICE_ID);
+        devInfo->classCode = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_CLASS);
+        devInfo->subClass = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_SUB_CLASS);
+        devInfo->progIF = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_PROG_IF);
+    }
 
     uint32_t PCIToRegister(uint8_t bus, uint8_t device, uint8_t func, uint8_t offset) {
         uint32_t lbus = (uint32_t)bus;
@@ -29,13 +64,23 @@ namespace DeviceManager { namespace PCI {
         uint8_t baseClass = ReadConfigB(bus, device, function, PCI_CONFIG_CLASS);
         uint8_t subClass = ReadConfigB(bus, device, function, PCI_CONFIG_SUB_CLASS);
 
+        // Register device
+        PCIRegisterInfo newPCIDevice;
+        newPCIDevice.bus = bus;
+        newPCIDevice.device = device;
+        newPCIDevice.function = function;
+
+        Device* newDevice = (Device*)malloc(sizeof(Device));
+        newDevice->name = (char*)"PCI Device";
+        newDevice->driver = &PCIDriver;
+        newDevice->driverInfo = &newPCIDevice;
+
+        RegisterDevice(newDevice, &PCIDriver);
+
         if (baseClass == 0x06 && subClass == 0x04) {
             uint8_t secondaryBus = ReadConfigB(bus, device, function, PCI_CONFIG_SECONDARY_BUS_NUMBER);
             CheckPCIBus(secondaryBus);
         }
-
-        // Register PCI Device
-        debugLogger.Log("New PCI Device %#x-%#x", baseClass, subClass);
     }
 
     void CheckPCIDevice(uint8_t bus, uint8_t device) {
