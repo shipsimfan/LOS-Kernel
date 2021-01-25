@@ -96,4 +96,15 @@ namespace DeviceManager { namespace ACPI {
 
         return true;
     }
+
+    void* GetTable(const char* signature) {
+        ACPI_TABLE_HEADER* ret;
+        ACPI_STATUS status = AcpiGetTable((char*)signature, 1, &ret);
+        if (ACPI_FAILURE(status)) {
+            errorLogger.Log("Error while getting ACPI table with signature %s (%i)", signature, status);
+            return nullptr;
+        }
+
+        return ret;
+    }
 }} // namespace DeviceManager::ACPI

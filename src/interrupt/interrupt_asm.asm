@@ -35,12 +35,6 @@ GLOBAL SpuriousISRHandler
 SpuriousISRHandler:
     iretq
 
-GLOBAL TimerISRHandler
-EXTERN TimerISR
-TimerISRHandler:
-    call TimerISR
-    iretq
-
 GLOBAL EnableAPIC
 EnableAPIC:
     push rdx

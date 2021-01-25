@@ -13,6 +13,12 @@ namespace DeviceManager { namespace PCI {
         uint8_t function;
     };
 
+    void RegisterPCIChildDriver(DeviceDriver* driver) {
+        Device* device = PCIDriver.deviceHead;
+        while (device != nullptr)
+            device = RegisterDevice(device, driver);
+    }
+
     // bool verifyDevice(Device* device)
     // Returns true if this driver can initialize the device
     bool PCIVerifyDevice(Device* device) { return device->driver == &PCIDriver; }
@@ -24,7 +30,7 @@ namespace DeviceManager { namespace PCI {
         PCIRegisterInfo* tmpInfo = (PCIRegisterInfo*)device->driverInfo;
         uint8_t headerType = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_HEADER_TYPE);
         PCIDeviceInfo* devInfo;
-        if(headerType == 0) {
+        if (headerType == 0) {
             StandardPCIDeviceInfo* stdInfo = (StandardPCIDeviceInfo*)malloc(sizeof(StandardPCIDeviceInfo));
             stdInfo->baseAddr0 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_0);
             stdInfo->baseAddr1 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_1);
@@ -35,7 +41,7 @@ namespace DeviceManager { namespace PCI {
 
             stdInfo->interruptLine = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_LINE);
             stdInfo->interruptPin = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_PIN);
-            devInfo = (PCIDeviceInfo*) stdInfo;
+            devInfo = (PCIDeviceInfo*)stdInfo;
         } else
             devInfo = (PCIDeviceInfo*)malloc(sizeof(PCIDeviceInfo));
 
@@ -48,6 +54,8 @@ namespace DeviceManager { namespace PCI {
         devInfo->classCode = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_CLASS);
         devInfo->subClass = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_SUB_CLASS);
         devInfo->progIF = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_PROG_IF);
+
+        device->driverInfo = devInfo;
     }
 
     uint32_t PCIToRegister(uint8_t bus, uint8_t device, uint8_t func, uint8_t offset) {
@@ -126,8 +134,10 @@ namespace DeviceManager { namespace PCI {
         PCIDriver.name = "LOS PCI Driver";
         PCIDriver.parent = GetDeviceDriver(DEVICE_DRIVER_SIGNATURE_ACPI);
 
+        PCIDriver.RegisterChildDriver = RegisterPCIChildDriver;
         PCIDriver.VerifyDevice = PCIVerifyDevice;
         PCIDriver.RegisterDevice = PCIRegisterDevice;
+
         RegisterDeviceDriver(&PCIDriver);
 
         // Ennumerate the PCI and register all the devices

@@ -1,5 +1,7 @@
 #include <dev.h>
 #include <dev/acpi.h>
+#include <dev/hpet.h>
+#include <dev/ide.h>
 #include <dev/pci.h>
 #include <interrupt.h>
 #include <logger.h>
@@ -15,6 +17,11 @@ namespace DeviceManager {
 
         if (!PCI::RegisterPCIDriver())
             return false;
+
+        if (!HPET::RegisterHPETDriver(ACPI::GetTable("HPET")))
+            return false;
+
+        // IDE::RegisterIDEDriver();
 
         infoLogger.Log("Device manager initialized!");
         return true;
@@ -83,13 +90,30 @@ namespace DeviceManager {
         return ret;
     }
 
+    DeviceDriver* SearchForDriver(uint64_t signature, DeviceDriver* parent) {
+        // Check this driver
+        if (parent->signature == signature)
+            return parent;
+
+        // Check children drivers
+        DeviceDriverNode* child = parent->childHead;
+        DeviceDriver* ret;
+        while (child != nullptr) {
+            ret = SearchForDriver(signature, child->driver);
+            if (ret != nullptr)
+                return ret;
+
+            child = child->next;
+        }
+
+        return nullptr;
+    }
+
     DeviceDriver* GetDeviceDriver(uint64_t signature) {
         if (signature == DEVICE_DRIVER_SIGNATURE_ACPI)
             return driverRoot;
 
-        errorLogger.Log("NOT IMPLEMENTED GetDeviceDriver()");
-        // TODO: Implement breadth-first search for device drivers
-        return nullptr;
+        return SearchForDriver(signature, driverRoot);
     }
 
     void outb(uint16_t port, uint8_t val) { asm volatile("outb %0, %1" : : "a"(val), "Nd"(port)); }

@@ -185,7 +185,7 @@ extern "C" ACPI_STATUS AcpiOsInstallInterruptHandler(UINT32 interruptNumber, ACP
 }
 
 extern "C" ACPI_STATUS AcpiOsRemoveInterruptHandler(UINT32 interruptNumber, ACPI_OSD_HANDLER handler) {
-    InterruptHandler::ClearExternalInterruptHandler(interruptNumber);
+    InterruptHandler::ClearInterruptHandler(interruptNumber);
     return AE_OK;
 }
 

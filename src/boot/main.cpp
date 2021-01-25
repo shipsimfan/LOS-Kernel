@@ -1,6 +1,7 @@
 #include <console.h>
 #include <dev.h>
 #include <interrupt.h>
+#include <kernel/time.h>
 #include <logger.h>
 #include <mem.h>
 #include <mem/defs.h>
@@ -22,7 +23,7 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
     warningLogger.Set("Kernel", Logger::TYPE::WARNING, 0xFFFFFF00);
     errorLogger.Set("Kernel", Logger::TYPE::ERROR, 0xFFFF0000);
 
-    infoLogger.Log("Unamed Operating System");
+    infoLogger.Log("Lance Operating System");
     infoLogger.Log("Written By: Lance Hart");
     infoLogger.Log("Version %i.%i\n", MAJOR_VERSION, MINOR_VERSION);
 

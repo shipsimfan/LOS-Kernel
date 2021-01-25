@@ -53,8 +53,15 @@ namespace InterruptHandler {
     void InitAPIC(void* madt);
 
     void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState));
-    void SetExternalInterruptHandler(int interrupt, void (*interruptHandler)(void*));
-    void ClearExternalInterruptHandler(int interrupt);
+    void SetInterruptHandler(int interrupt, void (*interruptHandler)(void*));
+    void ClearInterruptHandler(int interrupt);
+
+    void SetIRQ(uint8_t irq, void (*irqHandler)(), bool mask = false, bool levelTriggered = false, bool activeLow = false);
+
+    uint8_t SetAvailableIRQ(void (*irqHandler)(), bool mask = false, bool levelTriggered = false, bool activeLow = false);
+    void SetIRQMask(uint8_t irq, bool mask);
+
+    void WriteEOI();
 
     void StopInterrupts();
 } // namespace InterruptHandler
