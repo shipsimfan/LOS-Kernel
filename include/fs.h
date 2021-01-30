@@ -11,6 +11,7 @@ namespace VirtualFileSystem {
 
         void* driverInfo;
 
+        const char* volumeName = "";
         uint64_t startLBA;
         uint64_t length;
     };
