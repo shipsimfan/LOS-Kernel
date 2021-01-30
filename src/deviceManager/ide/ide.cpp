@@ -2,6 +2,7 @@
 
 #include <dev.h>
 #include <dev/pci.h>
+#include <fs.h>
 #include <interrupt.h>
 #include <kernel/time.h>
 #include <logger.h>
@@ -539,7 +540,8 @@ namespace DeviceManager { namespace IDE {
                 IDEDriver.deviceHead = newDrive;
 
                 infoLogger.Log("%s Drive at %s %s with size %i bytes - %s", (const char*[]){"ATA", "ATAPI"}[driveInfo->type], (const char*[]){"Primary", "Secondary"}[driveInfo->channel], (const char*[]){"Master", "Slave"}[driveInfo->drive], driveInfo->size, driveInfo->model);
-                // TODO: Register drive with Virtual File System
+
+                VirtualFileSystem::RegisterDrive(newDrive, driveInfo->size);
             }
         }
     } // namespace IDE
