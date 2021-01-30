@@ -41,8 +41,17 @@
 #define LAPIC_TIMER_DIV 0x3E0 / 4
 
 #define APIC_DISABLE 0x10000
-#define APIC_NMI (4 << 8)
-#define APIC_SW_ENABLE 0x100
+
+#define NUM_INTERRUPTS 256
+#define NUM_EXCEPTIONS 32
+#define NUM_PIC_IRQ 16
+#define IRQ_BASE NUM_EXCEPTIONS
+#define SPURIOUS_IVT 0xFF
+
+#define MASTER_PIC_COMMAND 0x20
+#define MASTER_PIC_DATA 0x21
+#define SLAVE_PIC_COMMAND 0xA0
+#define SLAVE_PIC_DATA 0xA1
 
 extern "C" void InterruptHandler0();
 extern "C" void InterruptHandler1();
@@ -77,10 +86,27 @@ extern "C" void InterruptHandler29();
 extern "C" void InterruptHandler30();
 extern "C" void InterruptHandler31();
 
+extern "C" void IRQHandler0();
+extern "C" void IRQHandler1();
+extern "C" void IRQHandler2();
+extern "C" void IRQHandler3();
+extern "C" void IRQHandler4();
+extern "C" void IRQHandler5();
+extern "C" void IRQHandler6();
+extern "C" void IRQHandler7();
+extern "C" void IRQHandler8();
+extern "C" void IRQHandler9();
+extern "C" void IRQHandler10();
+extern "C" void IRQHandler11();
+extern "C" void IRQHandler12();
+extern "C" void IRQHandler13();
+extern "C" void IRQHandler14();
+extern "C" void IRQHandler15();
+
 extern "C" void InstallIDT();
 
-extern "C" void DisableInterrupts();
-extern "C" void EnableInterrupts();
+extern "C" void CLIFunc();
+extern "C" void STIFunc();
 
 extern "C" void SpuriousISRHandler();
 extern "C" void TimerISRHandler();
@@ -124,28 +150,17 @@ namespace InterruptHandler {
     };
 #pragma pack(pop)
 
-    struct IOAPIC {
-        IOAPIC* next;
-        uint8_t id;
-        uint32_t* selectRegister;
-        uint32_t* dataRegister;
-        uint32_t irqBase;
-        uint8_t numIRQ;
-    };
+    enum InterruptType { UNUSED, EXCEPTION, IRQ, SPURIOUS };
 
     const char* exceptions[] = {"Divide by zero", "Debug", "Non-maskable interrupt", "Breakpoint", "Overflow", "Bound range exceeded", "Invalid opcode", "Device not available", "Double fault", "Coprocessor Segment Overrun", "Invalid TSS", "Segment not present", "Stack-segmentation", "General protection", "Page", "", "x87 Floating-Point", "Alignment Check", "Machine Check", "SIMD Floating-Point", "Virtualization"};
 
-    IDTDescr idt[256];
+    bool (*exceptionHandlers[NUM_EXCEPTIONS])(CPUState, StackState);
+    void (*irqHandlers[NUM_PIC_IRQ])();
 
-    bool (*exceptionHandlers[32])(CPUState, StackState);
-    void (*interruptHandlers[256 - 32])(void*);
+    InterruptType interrupts[NUM_INTERRUPTS];
 
+    IDTDescr idt[NUM_INTERRUPTS];
     uint32_t* localAPIC;
-
-    IOAPIC* ioapics;
-
-    uint8_t irqMapping[256 - 32];
-    uint8_t numIRQ;
 
     void InfoDump(CPUState cpu, StackState stack) {
         printf("rax: 0x%llx    rbx: 0x%llx    rcx: 0x%llx\n", cpu.rax, cpu.rbx, cpu.rcx);
@@ -173,7 +188,16 @@ namespace InterruptHandler {
             ;
     }
 
-    void InstallInterruptHandler(int interrupt, uint64_t offset) {
+    extern "C" void CommonIRQHandler(uint64_t irqNumber) {
+        if (irqHandlers[irqNumber] != nullptr)
+            irqHandlers[irqNumber]();
+        else
+            debugLogger.Log("IRQ Number: %i", irqNumber);
+
+        EndIRQ(irqNumber);
+    }
+
+    void InstallInterruptHandler(uint8_t interrupt, uint64_t offset) {
         idt[interrupt].offset1 = offset & 0xFFFF;
         idt[interrupt].offset2 = (offset >> 16) & 0xFFFF;
         idt[interrupt].offset3 = (offset >> 32) & 0xFFFFFFFF;
@@ -185,21 +209,21 @@ namespace InterruptHandler {
         idt[interrupt].zero = 0;
     }
 
-    void WriteIOAPIC(IOAPIC* ioapic, uint8_t reg, uint32_t val) {
-        *ioapic->selectRegister = reg;
-        *ioapic->dataRegister = val;
-    }
-
-    uint32_t ReadIOAPIC(IOAPIC* ioapic, uint8_t reg) {
-        *ioapic->selectRegister = reg;
-        return *ioapic->dataRegister;
-    }
-
     void Init() {
         infoLogger.Log("Initializing interrupt handler . . .");
 
-        for (int i = 0; i < 32; i++)
+        for (int i = 0; i < 256; i++)
+            interrupts[i] = InterruptType::UNUSED;
+
+        for (int i = 0; i < 32; i++) {
             exceptionHandlers[i] = nullptr;
+            interrupts[i] = InterruptType::EXCEPTION;
+        }
+
+        for (int i = 0; i < NUM_PIC_IRQ; i++) {
+            irqHandlers[i] = nullptr;
+            interrupts[i + IRQ_BASE] = IRQ;
+        }
 
         memset(idt, 0, sizeof(idt));
 
@@ -243,100 +267,107 @@ namespace InterruptHandler {
         infoLogger.Log("Interrupt handler initialized!");
     }
 
-    void InitAPIC(void* madt) {
-        MADT* madtP = (MADT*)madt;
+    bool InitAPIC(void* madtv) {
+        MADT* madt = (MADT*)madtv;
 
         // Save and allocate LAPIC address
-        localAPIC = (uint32_t*)((uint64_t)madtP->localAPICAddress + KERNEL_VMA);
-        MemoryManager::Virtual::AllocatePage(localAPIC, madtP->localAPICAddress, true);
+        localAPIC = (uint32_t*)((uint64_t)madt->localAPICAddress + KERNEL_VMA);
+        MemoryManager::Virtual::AllocatePage(localAPIC, madt->localAPICAddress, true);
 
-        // Find all IOAPICs
-        uint64_t entry = (uint64_t)&madtP->firstEntry;
-        MADTEntry* entryPtr = (MADTEntry*)entry;
-        numIRQ = 0;
-        while (entry < (uint64_t)madtP + (madtP->length)) {
-            if (entryPtr->type == 1) {
-                IOAPICEntry* ioapic = (IOAPICEntry*)entryPtr;
-                IOAPIC* newIOAPIC = (IOAPIC*)malloc(sizeof(IOAPIC));
-                newIOAPIC->id = ioapic->ioAPICID;
-                newIOAPIC->selectRegister = (uint32_t*)((uint64_t)ioapic->ioAPICAddress + KERNEL_VMA);
-                newIOAPIC->dataRegister = (uint32_t*)((uint64_t)newIOAPIC->selectRegister + 0x10);
+        // Verify 8259 PICs
+        if ((madt->flags & 1) == 0) {
+            errorLogger.Log("No 8259 PICs installed!");
+            return false;
+        }
 
-                // Allocate the register pages
-                MemoryManager::Virtual::AllocatePage(newIOAPIC->selectRegister, ioapic->ioAPICAddress, true);
+        // Find and mask all IO-APICS
+        MADTEntry* entry = &madt->firstEntry;
+        uint64_t entryI = (uint64_t)entry;
+        while (entryI < (uint64_t)madt + madt->length) {
+            if (entry->type == 1) {
+                IOAPICEntry* ioapic = (IOAPICEntry*)entry;
+                uint32_t* selectReg = (uint32_t*)((uint64_t)ioapic->ioAPICAddress + KERNEL_VMA);
+                uint32_t* dataReg = (uint32_t*)((uint64_t)selectReg + 0x10);
 
-                newIOAPIC->irqBase = ioapic->gloablSystemInterruptBase;
-                newIOAPIC->numIRQ = (ReadIOAPIC(newIOAPIC, 1) >> 16) & 0xF;
-
-                newIOAPIC->next = ioapics;
-                ioapics = newIOAPIC;
-
-                if (newIOAPIC->irqBase >= numIRQ)
-                    numIRQ = newIOAPIC->irqBase + newIOAPIC->numIRQ;
-
-                // Map the IRQs
-                for (int i = 0; i < newIOAPIC->numIRQ; i++) {
-                    uint32_t IRQLowInfo = ReadIOAPIC(newIOAPIC, 0x10 + 2 * i);
-                    uint32_t IRQHighInfo = ReadIOAPIC(newIOAPIC, 0x11 + 2 * i);
-                    IRQLowInfo &= 0xFFFFF800;
-                    IRQLowInfo |= (newIOAPIC->irqBase + i + 32) & 0xFF;
-                    IRQHighInfo &= 0xF0FFFFFF;
-                    IRQHighInfo |= (localAPIC[LAPIC_ID] & 0xF) << 24;
-                    WriteIOAPIC(newIOAPIC, 0x10 + 2 * i, IRQLowInfo);
-                    WriteIOAPIC(newIOAPIC, 0x11 + 2 * i, IRQHighInfo);
-
-                    irqMapping[i + newIOAPIC->irqBase] = IRQLowInfo & 0xFF;
+                *selectReg = 1; // Select IOAPICVER
+                uint8_t numIRQ = ((*dataReg) >> 16) + 1;
+                for (int i = 0; i < numIRQ; i++) {
+                    *selectReg = 0x10 + 2 * i;
+                    *dataReg = APIC_DISABLE;
                 }
             }
 
-            entry += entryPtr->length;
-            entryPtr = (MADTEntry*)entry;
+            entryI += entry->length;
+            entry = (MADTEntry*)entryI;
         }
 
-        for (int i = 0; i < numIRQ; i++)
-            interruptHandlers[i] = nullptr;
+        // Initialize the PICs
+        uint8_t masterMask, slaveMask;
+        masterMask = DeviceManager::inb(MASTER_PIC_DATA);
+        slaveMask = DeviceManager::inb(SLAVE_PIC_DATA);
 
-        // Setup APIC ISRs
-        InstallInterruptHandler(0xFF, (uint64_t)SpuriousISRHandler);
+        DeviceManager::outb(MASTER_PIC_COMMAND, 0x11);
+        DeviceManager::IOWait();
+        DeviceManager::outb(SLAVE_PIC_COMMAND, 0x11);
+        DeviceManager::IOWait();
+        DeviceManager::outb(MASTER_PIC_DATA, IRQ_BASE);
+        DeviceManager::IOWait();
+        DeviceManager::outb(SLAVE_PIC_DATA, IRQ_BASE + 8);
+        DeviceManager::IOWait();
+        DeviceManager::outb(MASTER_PIC_DATA, 4);
+        DeviceManager::IOWait();
+        DeviceManager::outb(SLAVE_PIC_DATA, 2);
+        DeviceManager::IOWait();
 
-        // Initialize LAPIC
-        localAPIC[LAPIC_DESTINATION_FORMAT] = 0xFFFFFFFF;
-        localAPIC[LAPIC_LOGICAL_DESTINATION] &= 0x00FFFFFF;
-        localAPIC[LAPIC_LOGICAL_DESTINATION] |= 1;
+        DeviceManager::outb(MASTER_PIC_DATA, 0x01);
+        DeviceManager::IOWait();
+        DeviceManager::outb(SLAVE_PIC_DATA, 0x01);
+        DeviceManager::IOWait();
 
-        localAPIC[LAPIC_TIMER_LVT] = APIC_DISABLE;
-        localAPIC[LAPIC_PERFORMANCE_MONITOR_COUNTER_LVT] = APIC_NMI;
-        localAPIC[LAPIC_LINT0_LVT] = APIC_DISABLE;
-        localAPIC[LAPIC_LINT1_LVT] = APIC_DISABLE;
-        localAPIC[LAPIC_TASK_PRIORITY] = 0;
+        DeviceManager::outb(MASTER_PIC_DATA, masterMask);
+        DeviceManager::outb(SLAVE_PIC_DATA, slaveMask);
 
-        EnableAPIC();
+        // Install interrupt handlers
+        InstallInterruptHandler(IRQ_BASE + 0, (uint64_t)IRQHandler0);
+        InstallInterruptHandler(IRQ_BASE + 1, (uint64_t)IRQHandler1);
+        InstallInterruptHandler(IRQ_BASE + 2, (uint64_t)IRQHandler2);
+        InstallInterruptHandler(IRQ_BASE + 3, (uint64_t)IRQHandler3);
+        InstallInterruptHandler(IRQ_BASE + 4, (uint64_t)IRQHandler4);
+        InstallInterruptHandler(IRQ_BASE + 5, (uint64_t)IRQHandler5);
+        InstallInterruptHandler(IRQ_BASE + 6, (uint64_t)IRQHandler6);
+        InstallInterruptHandler(IRQ_BASE + 7, (uint64_t)IRQHandler7);
+        InstallInterruptHandler(IRQ_BASE + 8, (uint64_t)IRQHandler8);
+        InstallInterruptHandler(IRQ_BASE + 9, (uint64_t)IRQHandler9);
+        InstallInterruptHandler(IRQ_BASE + 10, (uint64_t)IRQHandler10);
+        InstallInterruptHandler(IRQ_BASE + 11, (uint64_t)IRQHandler11);
+        InstallInterruptHandler(IRQ_BASE + 12, (uint64_t)IRQHandler12);
+        InstallInterruptHandler(IRQ_BASE + 13, (uint64_t)IRQHandler13);
+        InstallInterruptHandler(IRQ_BASE + 14, (uint64_t)IRQHandler14);
+        InstallInterruptHandler(IRQ_BASE + 15, (uint64_t)IRQHandler15);
 
-        // Initialize the IOAPICs
+        // Unmask all irqs
+        for (int i = 0; i < NUM_PIC_IRQ; i++)
+            ClearMask(i);
 
-        // Initialize LAPIC timer
-        // localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0xFF + APIC_SW_ENABLE;
-        // localAPIC[LAPIC_TIMER_DIV] = 3;
-        // localAPIC[LAPIC_TIMER_LVT] = 0x20020;
-        // localAPIC[LAPIC_TIMER_INITCNT] = 1000;
+        return true;
     }
 
-    void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState)) {
-        if (exception < 0 || exception >= 32)
+    void SetExceptionHandler(uint8_t exception, bool (*exceptionHandler)(CPUState, StackState)) {
+        if (exception >= NUM_EXCEPTIONS)
             return;
 
         exceptionHandlers[exception] = exceptionHandler;
     }
 
-    void SetInterruptHandler(int interrupt, void (*interruptHandler)(void*)) {
-        if (interrupt < 32 || interrupt > 255)
+    void SetInterruptHandler(uint8_t interrupt, void (*interruptHandler)()) {
+        if (interrupt < NUM_EXCEPTIONS || interrupt >= NUM_INTERRUPTS)
             return;
 
         InstallInterruptHandler(interrupt, (uint64_t)interruptHandler);
     }
 
-    void ClearInterruptHandler(int interrupt) {
-        if (interrupt < 32 || interrupt > 255)
+    void ClearInterruptHandler(uint8_t interrupt) {
+        if (interrupt < NUM_EXCEPTIONS || interrupt >= NUM_INTERRUPTS)
             return;
 
         idt[interrupt].offset1 = 0;
@@ -347,59 +378,46 @@ namespace InterruptHandler {
         idt[interrupt].offset3 = 0;
     }
 
-    void StopInterrupts() { DisableInterrupts(); }
+    void DisableInterrupts() { CLIFunc(); }
+    void EnableInterrupts() { STIFunc(); }
 
-    uint8_t SetAvailableIRQ(void (*irqHandler)(), bool mask, bool levelTriggered, bool activeLow) {
-        for (int i = 0; i < numIRQ; i++) {
-            if (interruptHandlers[i] == nullptr) {
-                SetIRQ(i, irqHandler, mask, levelTriggered, activeLow);
-                return i;
-            }
-        }
-
-        return 0xFF;
-    }
-
-    void SetIRQ(uint8_t irq, void (*irqHandler)(), bool mask, bool levelTriggered, bool activeLow) {
-        if (irq > numIRQ)
+    void SetIRQ(uint8_t irq, void (*irqHandler)()) {
+        if (irq >= NUM_PIC_IRQ)
             return;
 
-        InstallInterruptHandler(irqMapping[irq], (uint64_t)irqHandler);
-        interruptHandlers[irq] = (void (*)(void*))irqHandler;
-
-        // Unmask appropriate IRQ
-        IOAPIC* ioapic = ioapics;
-        while (ioapic != nullptr) {
-            if (ioapic->irqBase <= irq && ioapic->irqBase + ioapic->numIRQ > irq) {
-                uint32_t irqLow = ReadIOAPIC(ioapic, 0x10 + (irq - ioapic->irqBase) * 2);
-
-                irqLow &= (1 << 14) | 0xFF;
-                irqLow = irqLow | (activeLow ? 1 << 13 : 0) | (levelTriggered ? 1 << 15 : 0) | (mask ? 1 << 16 : 0);
-
-                WriteIOAPIC(ioapic, 0x10 + (irq - ioapic->irqBase) * 2, irqLow);
-                break;
-            } else
-                ioapic = ioapic->next;
-        }
+        irqHandlers[irq] = irqHandler;
     }
 
-    void SetIRQMask(uint8_t irq, bool mask) {
-        IOAPIC* ioapic = ioapics;
-        while (ioapic != nullptr) {
-            if (ioapic->irqBase <= irq && ioapic->irqBase + ioapic->numIRQ > irq) {
-                uint32_t irqLow = ReadIOAPIC(ioapic, 0x10 + (irq - ioapic->irqBase) * 2);
-
-                if (mask)
-                    irqLow |= 1 << 16;
-                else
-                    irqLow &= ~(1 << 16);
-
-                WriteIOAPIC(ioapic, 0x10 + (irq - ioapic->irqBase) * 2, irqLow);
-                break;
-            } else
-                ioapic = ioapic->next;
+    void SetMask(uint8_t irq) {
+        uint16_t port = MASTER_PIC_DATA;
+        if (irq >= 8) {
+            port = SLAVE_PIC_DATA;
+            irq -= 8;
         }
+
+        uint8_t value = DeviceManager::inb(port) | (1 << irq);
+        DeviceManager::outb(port, value);
     }
 
-    void WriteEOI() { localAPIC[LAPIC_EOI] = 0; }
+    void ClearMask(uint8_t irq) {
+        uint16_t port = MASTER_PIC_DATA;
+        if (irq >= 8) {
+            port = SLAVE_PIC_DATA;
+            irq -= 8;
+        }
+
+        uint8_t value = DeviceManager::inb(port) & ~(1 << irq);
+        DeviceManager::outb(port, value);
+    }
+
+    void EndInterrupt() { localAPIC[LAPIC_EOI] = 0; }
+
+    void EndIRQ(uint8_t irq) {
+        EndInterrupt();
+
+        if (irq >= 8)
+            DeviceManager::outb(SLAVE_PIC_COMMAND, 0x20);
+
+        DeviceManager::outb(MASTER_PIC_COMMAND, 0x20);
+    }
 } // namespace InterruptHandler

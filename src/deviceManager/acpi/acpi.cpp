@@ -35,34 +35,11 @@ namespace DeviceManager { namespace ACPI {
         return true;
     }
 
-    void RegisterChildDriver(DeviceDriver* driver) {
-        Device* device = ACPIDriver.deviceHead;
-        while (device != nullptr)
-            device = RegisterDevice(device, driver);
-    }
+    void RegisterChildDriver(DeviceDriver* driver) {}
 
-    bool VerifyDevice(Device* device) { return true; }
+    bool VerifyDevice(Device* device) { return false; }
 
-    void ACPIRegisterDevice(Device* device) {
-        // Initialize the ACPI device name
-        ACPI_DEVICE_INFO* devInfo;
-        AcpiGetObjectInfo((ACPI_HANDLE)device->driverInfo, &devInfo);
-
-        device->name = (char*)malloc(11);
-        device->name[0] = 'A';
-        device->name[1] = 'C';
-        device->name[2] = 'P';
-        device->name[3] = 'I';
-        device->name[4] = ':';
-        device->name[5] = ' ';
-        device->name[6] = devInfo->Name & 0xFF;
-        device->name[7] = (devInfo->Name >> 8) & 0xFF;
-        device->name[8] = (devInfo->Name >> 16) & 0xFF;
-        device->name[9] = (devInfo->Name >> 24) & 0xFF;
-        device->name[10] = 0;
-
-        device->driverInfo = nullptr;
-    }
+    void ACPIRegisterDevice(Device* device) {}
 
     bool RegisterACPIDriver(void* rdsp) {
         infoLogger.Log("Initializing ACPI . . . ");
@@ -90,7 +67,8 @@ namespace DeviceManager { namespace ACPI {
             return false;
         }
 
-        InterruptHandler::InitAPIC(madt);
+        if (!InterruptHandler::InitAPIC(madt))
+            return false;
 
         infoLogger.Log("ACPI initialized!");
 

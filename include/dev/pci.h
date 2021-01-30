@@ -47,7 +47,6 @@ namespace DeviceManager { namespace PCI {
         uint32_t baseAddr4;
         uint32_t baseAddr5;
         uint8_t interruptLine;
-        uint8_t interruptPin;
     };
 
     bool RegisterPCIDriver();

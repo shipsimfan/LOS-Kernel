@@ -50,18 +50,20 @@ namespace InterruptHandler {
     extern "C" IDTDescr idt[256];
 
     void Init();
-    void InitAPIC(void* madt);
+    bool InitAPIC(void* madt);
 
-    void SetExceptionHandler(int exception, bool (*exceptionHandler)(CPUState, StackState));
-    void SetInterruptHandler(int interrupt, void (*interruptHandler)(void*));
-    void ClearInterruptHandler(int interrupt);
+    void SetExceptionHandler(uint8_t exception, bool (*exceptionHandler)(CPUState, StackState));
+    void SetInterruptHandler(uint8_t interrupt, void (*interruptHandler)());
+    void ClearInterruptHandler(uint8_t interrupt);
 
-    void SetIRQ(uint8_t irq, void (*irqHandler)(), bool mask = false, bool levelTriggered = false, bool activeLow = false);
+    void SetIRQ(uint8_t irq, void (*irqHandler)());
 
-    uint8_t SetAvailableIRQ(void (*irqHandler)(), bool mask = false, bool levelTriggered = false, bool activeLow = false);
-    void SetIRQMask(uint8_t irq, bool mask);
+    void SetMask(uint8_t irq);
+    void ClearMask(uint8_t irq);
 
-    void WriteEOI();
+    void EndInterrupt();
+    void EndIRQ(uint8_t interrupt);
 
-    void StopInterrupts();
+    void DisableInterrupts();
+    void EnableInterrupts();
 } // namespace InterruptHandler

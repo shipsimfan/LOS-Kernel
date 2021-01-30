@@ -14,6 +14,8 @@
 #define HPET_TIMER_COMPARE_REG(n) ((0x108 + 0x20 * n) / 8)
 #define HPET_TIMER_FSB_INTERRUPT_REG(n) ((0x110 + 0x20 * n) / 8)
 
+#define TIMER_IRQ 0
+
 namespace DeviceManager { namespace HPET {
 #pragma pack(push)
 #pragma pack(1)
@@ -46,32 +48,13 @@ namespace DeviceManager { namespace HPET {
     };
 
 #pragma pack(pop)
-    struct HPETTimerInfo {
-        uint32_t interruptRouteCapability;
-        bool fsbCapable;
-        bool fsbEnabled;
-        uint8_t irq;
-        bool is64Bit;
-        bool periodicCapable;
-        bool periodicEnabled;
-        bool interruptsEnabled;
-    };
 
     uint64_t* hpet;
     uint32_t minimumTick;
 
-    HPETTimerInfo* timers;
-    uint8_t numTimers;
-
     uint64_t currentTimeMillis = 0;
 
-    extern "C" void HPETTimerIRQHandler();
-
-    extern "C" void HPETTimerIRQ() {
-        currentTimeMillis++;
-
-        InterruptHandler::WriteEOI();
-    }
+    extern "C" void HPETTimerIRQ() { currentTimeMillis++; }
 
     extern "C" void sleep(uint64_t milliseconds) {
         // Blocking sleep function
@@ -106,51 +89,25 @@ namespace DeviceManager { namespace HPET {
         // Save minimum tick from config register
         minimumTick = hpet[HPET_GENERAL_CAPABILITIES_REG] >> 32 & 0xFFFFFFFF;
 
+        // Setup IRQ
+        InterruptHandler::SetIRQ(TIMER_IRQ, HPETTimerIRQ);
+
         // Initialize timers
-        numTimers = ((hpet[HPET_GENERAL_CAPABILITIES_REG] >> 8) & 0x1F) + 1;
-        timers = (HPETTimerInfo*)malloc(sizeof(HPETTimerInfo) * numTimers);
+        uint8_t numTimers = ((hpet[HPET_GENERAL_CAPABILITIES_REG] >> 8) & 0x1F) + 1;
         for (int i = 0; i < numTimers; i++) {
             uint64_t timerCap = hpet[HPET_TIMER_CONFIG_REG(i)];
-            timers[i].interruptRouteCapability = (timerCap >> 32) & 0xFFFFFFFF;
-            timers[i].fsbCapable = (timerCap >> 15) & 1;
-            timers[i].fsbEnabled = false;
-            timerCap &= ~(1 << 14);
-            timers[i].is64Bit = (timerCap >> 8) & 1;
-            timers[i].periodicCapable = (timerCap >> 4) & 1;
-            timers[i].periodicEnabled = false;
-            timerCap &= ~(1 << 3);
-            timers[i].interruptsEnabled = false;
-            timerCap &= ~(1 << 2);
-
-            // Select first irq
-            for (int j = 0; j < 32; j++) {
-                if (((timers[i].interruptRouteCapability >> j) & 1) == 1) {
-                    timers[i].irq = j;
-
-                    timerCap &= ~(0xF << 9);
-                    timerCap |= (timers[i].irq & 0xF) << 9;
-
-                    break;
-                }
-            }
-
-            if ((((timers[i].interruptRouteCapability) >> timers[i].irq) & 1) == 0) {
-                errorLogger.Log("Unable to get IRQ");
-                return false;
-            }
-
-            InterruptHandler::SetIRQ(timers[i].irq, HPETTimerIRQHandler, false, (timerCap >> 1) & 1);
-
+            timerCap &= ~(1 << 14); // Disable FSB
+            timerCap &= ~(1 << 3);  // Disable Periodic
+            timerCap &= ~(1 << 2);  // Disable Interrupts
             hpet[HPET_TIMER_CONFIG_REG(i)] = timerCap;
         }
 
         // Start the timer
         uint64_t timerVal = 1000000000000 / minimumTick;
-        hpet[HPET_GENERAL_CONFIG_REG] = 1;
+        hpet[HPET_GENERAL_CONFIG_REG] = 3;
 
         // Start the millisecond clock
-        InterruptHandler::SetIRQMask(timers[0].irq, false);
-        hpet[HPET_TIMER_CONFIG_REG(0)] = (timers[0].irq << 9) | (1 << 2) | (1 << 3) | (1 << 6);
+        hpet[HPET_TIMER_CONFIG_REG(0)] = TIMER_IRQ | (1 << 2) | (1 << 3) | (1 << 6);
         hpet[HPET_TIMER_COMPARE_REG(0)] = hpet[HPET_MAIN_COUNTER_REG] + timerVal;
         hpet[HPET_TIMER_COMPARE_REG(0)] = timerVal;
 

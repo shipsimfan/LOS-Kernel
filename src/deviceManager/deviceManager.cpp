@@ -15,13 +15,13 @@ namespace DeviceManager {
         if (!ACPI::RegisterACPIDriver(rdsp))
             return false;
 
-        if (!PCI::RegisterPCIDriver())
-            return false;
-
         if (!HPET::RegisterHPETDriver(ACPI::GetTable("HPET")))
             return false;
 
-        // IDE::RegisterIDEDriver();
+        if (!PCI::RegisterPCIDriver())
+            return false;
+
+        IDE::RegisterIDEDriver();
 
         infoLogger.Log("Device manager initialized!");
         return true;
@@ -138,5 +138,10 @@ namespace DeviceManager {
         uint32_t ret;
         asm volatile("inl %1, %0" : "=a"(ret) : "Nd"(port));
         return ret;
+    }
+
+    void IOWait() {
+        asm volatile("outb %%al, $0x80" : : "a"(0));
+        asm volatile("outb %%al, $0x80" : : "a"(0));
     }
 } // namespace DeviceManager

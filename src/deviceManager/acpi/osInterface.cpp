@@ -2,6 +2,7 @@
 #include <dev/acpi/acpi.h>
 #include <dev/pci.h>
 #include <interrupt.h>
+#include <kernel/time.h>
 #include <logger.h>
 #include <mem/heap.h>
 #include <mem/virtual.h>
@@ -124,18 +125,19 @@ extern "C" ACPI_THREAD_ID AcpiOsGetThreadId() {
 }
 
 extern "C" ACPI_STATUS AcpiOsExecute(ACPI_EXECUTE_TYPE type, ACPI_OSD_EXEC_CALLBACK function, void* context) {
-    warningLogger.Log("ACPICA Execute\n");
+    warningLogger.Log("ACPICA Execute");
+    function(context);
     return 0;
 }
 
-extern "C" void AcpiOsSleep(UINT64 milliseconds) { warningLogger.Log("ACPICA Sleep\n"); }
+extern "C" void AcpiOsSleep(UINT64 milliseconds) { sleep(milliseconds); }
 
 extern "C" ACPI_STATUS AcpiOsEnterSleep(UINT8 sleepState, UINT32 regaValue, UINT32 regbValue) {
     warningLogger.Log("ACPICA Enter sleep\n");
     return 0;
 }
 
-extern "C" void AcpiOsStall(UINT32 microseconds) { warningLogger.Log("ACPICA Stall\n"); }
+extern "C" void AcpiOsStall(UINT32 microseconds) { sleep((microseconds + 999) / 1000); }
 
 extern "C" ACPI_STATUS AcpiOsSignal(UINT32 function, void* info) {
     warningLogger.Log("ACPICA Signal\n");
@@ -180,7 +182,7 @@ extern "C" void AcpiOsReleaseLock(ACPI_SPINLOCK handle, ACPI_CPU_FLAGS flags) {}
 
 // Interrupt Handling
 extern "C" ACPI_STATUS AcpiOsInstallInterruptHandler(UINT32 interruptNumber, ACPI_OSD_HANDLER handler, void* context) {
-    warningLogger.Log("ACPICA Install interrupt handler\n");
+    warningLogger.Log("ACPICA Install interrupt handler(%i)", interruptNumber);
     return 0;
 }
 

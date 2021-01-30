@@ -35,7 +35,11 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
             ;
     }
 
-    DeviceManager::Init(rdsp);
+    if (!DeviceManager::Init(rdsp)) {
+        errorLogger.Log("Unable to continue boot! Fatal error while starting the device manager!");
+        while (1)
+            ;
+    }
 
     while (1)
         ;

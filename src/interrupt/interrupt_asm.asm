@@ -21,13 +21,13 @@ InstallIDT:
 
     ret
 
-GLOBAL DisableInterrupts
-DisableInterrupts:
+GLOBAL CLIFunc
+CLIFunc:
     cli
     ret
 
-GLOBAL EnableInterrupts
-EnableInterrupts:
+GLOBAL STIFunc
+STIFunc:
     sti
     ret
 
@@ -68,6 +68,18 @@ InterruptHandler%1:
     push QWORD %1
     jmp common_interrupt_handler
 %endmacro
+
+%macro irq_handler 1
+GLOBAL IRQHandler%1
+IRQHandler%1:
+    push rdi
+    mov rdi, %1
+    call CommonIRQHandler
+    pop rdi
+    iretq
+%endmacro
+
+EXTERN CommonIRQHandler
 
 EXTERN ExceptionHandler
 common_interrupt_handler:
@@ -149,3 +161,20 @@ no_error_code_interrupt_handler 28
 no_error_code_interrupt_handler 29
 error_code_interrupt_handler 30
 no_error_code_interrupt_handler 31
+
+irq_handler 0
+irq_handler 1
+irq_handler 2
+irq_handler 3
+irq_handler 4
+irq_handler 5
+irq_handler 6
+irq_handler 7
+irq_handler 8
+irq_handler 9
+irq_handler 10
+irq_handler 11
+irq_handler 12
+irq_handler 13
+irq_handler 14
+irq_handler 15

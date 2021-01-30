@@ -14,6 +14,7 @@ namespace DeviceManager {
     struct Device {
         char* name;
         DeviceDriver* driver;
+        uint64_t driverDeviceType; // Optional, only used by drivers
         void* driverInfo;
         Device* next;
         Device* prev;
@@ -43,21 +44,21 @@ namespace DeviceManager {
         // Returns false on error
         void (*RegisterDevice)(Device*);
 
-        // uint64_t read(uint64_t address)
+        // uint64_t Read(Device* device, uint64_t address)
         // Returns the number read
-        uint64_t (*Read)(uint64_t) = nullptr;
+        uint64_t (*Read)(Device*, uint64_t) = nullptr;
 
-        // uint64_t reads(uint64_t address, void* buffer, size_t bufferSize);
+        // uint64_t ReadStream(Device* device, uint64_t address, void* buffer, size_t bufferSize);
         // Returns number of bytes read into buffer
-        uint64_t (*ReadStream)(uint64_t, void*, size_t) = nullptr;
+        uint64_t (*ReadStream)(Device*, uint64_t, void*, size_t) = nullptr;
 
-        // uint64_t write(uint64_t address, uint64_t value);
+        // uint64_t Write(Device* device, uint64_t address, uint64_t value);
         // Returns true if the write was successful
-        bool (*Write)(uint64_t, uint64_t) = nullptr;
+        bool (*Write)(Device*, uint64_t, uint64_t) = nullptr;
 
-        // uint64_t writes(uint64_t address, void* buffer, size_t bufferSize);
+        // uint64_t WriteStream(Device* device, uint64_t address, void* buffer, size_t bufferSize);
         // Returns number of bytes written
-        uint64_t (*WriteStream)(uint64_t, void*, size_t) = nullptr;
+        uint64_t (*WriteStream)(Device*, uint64_t, void*, size_t) = nullptr;
     };
 
     bool Init(void* rdsp);
@@ -76,4 +77,6 @@ namespace DeviceManager {
     uint8_t inb(uint16_t port);
     uint16_t inw(uint16_t port);
     uint32_t ind(uint16_t port);
+
+    void IOWait();
 } // namespace DeviceManager

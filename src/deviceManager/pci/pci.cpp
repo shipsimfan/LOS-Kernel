@@ -40,7 +40,6 @@ namespace DeviceManager { namespace PCI {
             stdInfo->baseAddr5 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_5);
 
             stdInfo->interruptLine = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_LINE);
-            stdInfo->interruptPin = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_PIN);
             devInfo = (PCIDeviceInfo*)stdInfo;
         } else
             devInfo = (PCIDeviceInfo*)malloc(sizeof(PCIDeviceInfo));
@@ -142,6 +141,8 @@ namespace DeviceManager { namespace PCI {
 
         // Ennumerate the PCI and register all the devices
         CheckAllPCIBuses();
+
+        infoLogger.Log("PCI Initialized!");
 
         return true;
     }
