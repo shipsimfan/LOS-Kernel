@@ -35,10 +35,6 @@ namespace ProcessManager {
         // Properly load the file into user space
         debugLogger.Log("Parsing ELF file");
 
-        uint32_t* testing = (uint32_t*)PAGE_SIZE;
-        testing[1] = 0xDEADBEEF;
-        debugLogger.Log("%#llx", testing[1]);
-
         // Execute the file
     }
 }; // namespace ProcessManager
