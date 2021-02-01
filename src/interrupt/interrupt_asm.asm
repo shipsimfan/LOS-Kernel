@@ -89,7 +89,7 @@ common_interrupt_handler:
     push rdx
     push rsi
     push rdi
-    ;push rsp
+    push rsp
     push rbp
     push r8
     push r9
@@ -115,7 +115,7 @@ common_interrupt_handler:
     pop r9
     pop r8
     pop rbp
-    ;pop rsp
+    pop rsp
     pop rdi
     pop rsi
     pop rdx

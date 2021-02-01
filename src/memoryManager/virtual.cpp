@@ -4,29 +4,13 @@
 #include <interrupt.h>
 #include <logger.h>
 #include <mem/physical.h>
+#include <stdlib.h>
 #include <string.h>
 
-bool PageFaultHandler(InterruptHandler::CPUState cpu, InterruptHandler::StackState stack) {
-    if ((stack.errorCode & 1) == 0) {
-        if (cpu.cr2 >= KERNEL_VMA) {
-            physAddr_t physAddr = MemoryManager::Physical::AllocNextFreePage();
-            MemoryManager::Virtual::AllocatePage((virtAddr_t)cpu.cr2, physAddr, true);
-            return true;
-        }
-
-        errorLogger.Log("Page fault for access in user address space!");
-        errorLogger.Log("Fault address: %#llx", cpu.cr2);
-        errorLogger.Log("Error Code: %#x", stack.errorCode);
-    } else {
-        errorLogger.Log("Page Protection fault!");
-        errorLogger.Log("Fault address: %#llx", cpu.cr2);
-        errorLogger.Log("Error Code: %#x", stack.errorCode);
-    }
-
-    return false;
-}
-
 namespace MemoryManager {
+    extern "C" PML4* GetCurrentPML4();
+    extern "C" void SetCurrentPML4(physAddr_t pml4);
+
     void InvalidatePage(virtAddr_t addr) { asm volatile("invlpg (%0)" ::"r"((uint64_t)addr) : "memory"); }
 
     template <class T> void PageTableBase<T>::SetEntry(int index, physAddr_t addr, bool write, bool supervisor) {
@@ -53,6 +37,32 @@ namespace MemoryManager {
     namespace Virtual {
         PML4* kernelPML4;
         PML4* currentPML4;
+
+        bool PageFaultHandler(InterruptHandler::CPUState cpu, InterruptHandler::StackState stack) {
+            if ((stack.errorCode & 1) == 0) {
+                // Using the first page of virtual memory to detect null pointer exceptions
+                // Meaning you can't use the first page of virtual memory. Hopefully you didn't need those 4 kilobytes
+                if (cpu.cr2 < PAGE_SIZE)
+                    errorLogger.Log("Null Pointer Exception at %#llx", stack.rip);
+                else {
+                    if (currentPML4 != kernelPML4 || cpu.cr2 >= KERNEL_VMA) {
+                        physAddr_t physAddr = Physical::AllocNextFreePage();
+                        AllocatePage((virtAddr_t)cpu.cr2, physAddr, true);
+                        return true;
+                    }
+
+                    errorLogger.Log("Page fault for access in user address space!");
+                    errorLogger.Log("Fault address: %#llx", cpu.cr2);
+                    errorLogger.Log("Error Code: %#x", stack.errorCode);
+                }
+            } else {
+                errorLogger.Log("Page Protection fault!");
+                errorLogger.Log("Fault address: %#llx", cpu.cr2);
+                errorLogger.Log("Error Code: %#x", stack.errorCode);
+            }
+
+            return false;
+        }
 
         bool Init() {
             infoLogger.Log("Initializing virtual memory manager . . .");
@@ -199,6 +209,43 @@ namespace MemoryManager {
                     }
                 }
             }
+        }
+
+        physAddr_t VirtualToPhysical(virtAddr_t virtAddr) {
+            int pml4Index, pdptIndex, pdIndex, ptIndex, offset;
+            VirtualToIndex(virtAddr, pml4Index, pdptIndex, pdIndex, ptIndex, offset);
+
+            if (currentPML4->entries[pml4Index] == 0)
+                return 0;
+
+            PDPT* pdpt = currentPML4->GetEntry(pml4Index);
+            if (pdpt->entries[pdptIndex] == 0)
+                return 0;
+
+            PD* pd = pdpt->GetEntry(pdptIndex);
+            if (pd->entries[pdIndex] == 0)
+                return 0;
+
+            PT* pt = pd->GetEntry(pdIndex);
+
+            return (pt->entries[ptIndex] & ~(PAGE_SIZE - 1)) + offset;
+        }
+
+        uint64_t CreateNewPagingStructure() {
+            physAddr_t phys = Physical::AllocNextFreePage();
+            PML4* newPML4 = (PML4*)(phys + KERNEL_VMA);
+            for (int i = 0; i < 256; i++)
+                newPML4->entries[i] = 0;
+
+            for (int i = 256; i < 512; i++)
+                newPML4->entries[i] = kernelPML4->entries[i];
+
+            return phys;
+        }
+
+        void SetPageStructure(uint64_t cr3) {
+            currentPML4 = (PML4*)(cr3 + KERNEL_VMA);
+            SetCurrentPML4(cr3);
         }
     } // namespace Virtual
 } // namespace MemoryManager

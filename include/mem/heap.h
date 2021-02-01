@@ -30,5 +30,7 @@ namespace MemoryManager {
 
         void* malloc(size_t size);
         void free(void* ptr);
+
+        void* allocate_aligned(size_t alignment, size_t size);
     }; // namespace Heap
 } // namespace MemoryManager

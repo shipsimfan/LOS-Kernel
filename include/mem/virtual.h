@@ -27,14 +27,14 @@ namespace MemoryManager {
     struct PML4 : public PageTableBase<PDPT*> {};
 
 #pragma pack(pop)
-
-    extern "C" PML4* GetCurrentPML4();
-    extern "C" void SetCurrentPML4(physAddr_t pml4);
-
     namespace Virtual {
         bool Init();
 
         void AllocatePage(virtAddr_t virtAddr, physAddr_t physAddr, bool write);
         void FreePage(virtAddr_t addr);
+
+        uint64_t CreateNewPagingStructure();
+
+        void SetPageStructure(uint64_t cr3);
     }; // namespace Virtual
 } // namespace MemoryManager

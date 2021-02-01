@@ -5,6 +5,7 @@
 #include <logger.h>
 #include <mem.h>
 #include <mem/defs.h>
+#include <proc.h>
 #include <stdlib.h>
 
 #define MAJOR_VERSION 0
@@ -40,6 +41,8 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
         while (1)
             ;
     }
+
+    ProcessManager::ExecuteNewProcess(":0/LOS/SHELL.APP");
 
     while (1)
         ;
