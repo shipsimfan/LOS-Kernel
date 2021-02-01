@@ -350,6 +350,8 @@ namespace DeviceManager { namespace IDE {
                     return 0;
 
                 bytesRead += val;
+                buffer = (void*)((uint64_t)buffer + ATAPI_SECTOR_SIZE);
+                lba++;
             }
 
             return bytesRead;

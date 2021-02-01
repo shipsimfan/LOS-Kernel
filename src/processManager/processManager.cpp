@@ -1,5 +1,6 @@
 #include <proc.h>
 
+#include <elf.h>
 #include <fs.h>
 #include <logger.h>
 #include <stdlib.h>
@@ -33,7 +34,16 @@ namespace ProcessManager {
         MemoryManager::Virtual::SetPageStructure(newProcess->cr3);
 
         // Properly load the file into user space
-        debugLogger.Log("Parsing ELF file");
+        if (ELF::VerifyElfExecHeader(filePtr)) {
+            errorLogger.Log("Invalid ELF header!");
+            return;
+        }
+
+        debugLogger.Log("Valid ELF Header");
+
+        void* entry = ELF::LoadExecutableIntoUserspace(filePtr);
+
+        debugLogger.Log("Program Entry Address: %#llx", entry);
 
         // Execute the file
     }

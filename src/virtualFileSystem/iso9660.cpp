@@ -176,7 +176,7 @@ namespace VirtualFileSystem {
             void* bufToUse = buffer;
             size_t bufToUseSize = bufferSize;
             if (bufferSize % 2048 != 0) {
-                bufToUseSize = (bufferSize / 2048) + 2048;
+                bufToUseSize = ((bufferSize / 2048) + 1) * 2048;
                 bufToUse = malloc(bufToUseSize);
             }
 
