@@ -21,7 +21,7 @@ namespace MemoryManager {
         entry |= PAGE_PRESENT;
         if (write)
             entry |= PAGE_WRITE;
-        if (addr >= KERNEL_VMA)
+        if (supervisor)
             entry |= PAGE_SUPERVISOR;
 
         entries[index] = entry;
@@ -157,7 +157,7 @@ namespace MemoryManager {
             int pml4Index, pdptIndex, pdIndex, ptIndex, offset;
             VirtualToIndex(virtAddr, pml4Index, pdptIndex, pdIndex, ptIndex, offset);
 
-            bool supervisor = (uint64_t)virtAddr >= KERNEL_VMA;
+            bool supervisor = (uint64_t)virtAddr < KERNEL_VMA;
 
             // Check PDPT
             if ((currentPML4->entries[pml4Index] & 1) == 0) {

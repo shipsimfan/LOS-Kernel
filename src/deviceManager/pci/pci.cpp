@@ -27,11 +27,21 @@ namespace DeviceManager { namespace PCI {
     // Registers a device to this driver
     // Returns false on error
     void PCIRegisterDevice(Device* device) {
+        if (device == nullptr) {
+            errorLogger.Log("Device is null!");
+            return;
+        }
+
         PCIRegisterInfo* tmpInfo = (PCIRegisterInfo*)device->driverInfo;
         uint8_t headerType = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_HEADER_TYPE);
         PCIDeviceInfo* devInfo;
         if (headerType == 0) {
             StandardPCIDeviceInfo* stdInfo = (StandardPCIDeviceInfo*)malloc(sizeof(StandardPCIDeviceInfo));
+            if (stdInfo == nullptr) {
+                errorLogger.Log("Unable to allocate pci device info!");
+                return;
+            }
+
             stdInfo->baseAddr0 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_0);
             stdInfo->baseAddr1 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_1);
             stdInfo->baseAddr2 = ReadConfigD(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_BAR_2);
@@ -41,8 +51,13 @@ namespace DeviceManager { namespace PCI {
 
             stdInfo->interruptLine = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_INT_LINE);
             devInfo = (PCIDeviceInfo*)stdInfo;
-        } else
+        } else {
             devInfo = (PCIDeviceInfo*)malloc(sizeof(PCIDeviceInfo));
+            if (devInfo == nullptr) {
+                errorLogger.Log("Unable to allocate pci info!");
+                return;
+            }
+        }
 
         devInfo->bus = tmpInfo->bus;
         devInfo->device = tmpInfo->device;
@@ -78,6 +93,11 @@ namespace DeviceManager { namespace PCI {
         newPCIDevice.function = function;
 
         Device* newDevice = (Device*)malloc(sizeof(Device));
+        if (newDevice == nullptr) {
+            errorLogger.Log("Unable to allocate new device!");
+            return;
+        }
+
         newDevice->name = (char*)"PCI Device";
         newDevice->driver = &PCIDriver;
         newDevice->driverInfo = &newPCIDevice;

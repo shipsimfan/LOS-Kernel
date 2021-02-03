@@ -121,11 +121,16 @@ common_interrupt_handler:
     pop rdx
     pop rcx
     pop rbx
-    pop rax
 
-    add rsp, 16
+    mov ax, ss
+    cmp ax, 0
+    je .end
 
-    mov QWORD [rsp + 8], 0x08
+    mov QWORD [rsp + 32], 0x08
+
+    .end:
+        pop rax
+        add rsp, 16
 
     iretq
 

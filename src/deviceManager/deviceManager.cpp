@@ -11,6 +11,7 @@ namespace DeviceManager {
     DeviceDriver* driverRoot = nullptr;
 
     bool Init(void* rdsp) {
+        driverRoot = nullptr;
         infoLogger.Log("Initializing device manager . . .");
         if (!ACPI::RegisterACPIDriver(rdsp))
             return false;
@@ -92,6 +93,11 @@ namespace DeviceManager {
 
     DeviceDriver* SearchForDriver(uint64_t signature, DeviceDriver* parent) {
         // Check this driver
+        if (parent == nullptr) {
+            errorLogger.Log("Null parent");
+            return nullptr;
+        }
+
         if (parent->signature == signature)
             return parent;
 

@@ -203,7 +203,7 @@ namespace InterruptHandler {
         idt[interrupt].offset3 = (offset >> 32) & 0xFFFFFFFF;
 
         idt[interrupt].selector = 0x8;
-        idt[interrupt].typeAttr = 0b10001110;
+        idt[interrupt].typeAttr = 0b11101110;
 
         idt[interrupt].ist = 0;
         idt[interrupt].zero = 0;

@@ -7,6 +7,8 @@
 #include <string.h>
 
 namespace ProcessManager {
+    extern "C" void SystemReturn(uint64_t addr);
+
     void ExecuteNewProcess(const char* filepath) {
         infoLogger.Log("Executing new process: %s", filepath);
 
@@ -46,5 +48,25 @@ namespace ProcessManager {
         debugLogger.Log("Program Entry Address: %#llx", entry);
 
         // Execute the file
+        newProcess->cpuState.cr2 = 0;
+        newProcess->cpuState.r15 = 0;
+        newProcess->cpuState.r14 = 0;
+        newProcess->cpuState.r13 = 0;
+        newProcess->cpuState.r12 = 0;
+        newProcess->cpuState.r11 = 0;
+        newProcess->cpuState.r10 = 0;
+        newProcess->cpuState.r9 = 0;
+        newProcess->cpuState.r8 = 0;
+        newProcess->cpuState.rbp = 0;
+        newProcess->cpuState.rsp = 0;
+        newProcess->cpuState.rdi = 0;
+        newProcess->cpuState.rsi = 0;
+        newProcess->cpuState.rdx = 0;
+        newProcess->cpuState.rcx = (uint64_t)entry;
+        newProcess->cpuState.rbx = 0;
+        newProcess->cpuState.rax = 0;
+
+        debugLogger.Log("Returning!");
+        SystemReturn((uint64_t)entry);
     }
 }; // namespace ProcessManager

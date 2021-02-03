@@ -90,7 +90,7 @@ namespace VirtualFileSystem {
             ptr++;
 
             if (driveNumber >= fileSystemsSize || fileSystems[driveNumber] == nullptr) {
-                errorLogger.Log("Invalid drive number!");
+                errorLogger.Log("Invalid drive number! (%i)", driveNumber);
                 return nullptr;
             }
 

@@ -27,6 +27,11 @@ namespace VirtualFileSystem {
         }
 
         void SetupDirectory(FileSystem* fs, Directory* directory, void* bufferStart, size_t bufferLength) {
+            if (directory == nullptr) {
+                errorLogger.Log("Null Directory");
+                return;
+            }
+
             DirectoryEntry* entry = (DirectoryEntry*)bufferStart;
             uint64_t entryI = (uint64_t)entry;
 
@@ -40,6 +45,10 @@ namespace VirtualFileSystem {
             while (entry->length > 0) {
                 if (entry->flags & 2) {
                     Directory* newDir = (Directory*)malloc(sizeof(Directory));
+                    if (newDir == nullptr) {
+                        errorLogger.Log("Unable to allocate new directory!");
+                        return;
+                    }
 
                     newDir->next = directory->subDirectories;
                     directory->subDirectories = newDir;
@@ -67,6 +76,11 @@ namespace VirtualFileSystem {
                     free(buffer);
                 } else {
                     File* newFile = (File*)malloc(sizeof(File));
+                    if (newFile == nullptr) {
+                        errorLogger.Log("Unable to allocate new file!");
+                        return;
+                    }
+
                     newFile->next = directory->subFiles;
                     directory->subFiles = newFile;
                     newFile->directory = directory;
@@ -144,6 +158,11 @@ namespace VirtualFileSystem {
             fs->volumeName = volumeName;
 
             Directory* rootDir = (Directory*)malloc(sizeof(Directory));
+            if (rootDir == nullptr) {
+                errorLogger.Log("Unable to allocate root directory!");
+                return;
+            }
+
             rootDir->name = "";
             rootDir->parent = rootDir;
             rootDir->next = nullptr;

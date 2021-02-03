@@ -272,6 +272,13 @@ namespace DeviceManager { namespace IDE {
     }
 
     uint64_t ATAPIRead(IDEDriveInfo* driveInfo, IDEDeviceInfo* ideInfo, uint64_t lba, void* buffer) {
+        if (driveInfo == nullptr || ideInfo == nullptr || buffer == nullptr) {
+            errorLogger.Log("ATAPIRead: drive - %#llx, ide - %#llx, buffer - %#llx", driveInfo, ideInfo, buffer);
+            return 0;
+        }
+
+        irqInvoked = 0;
+
         // Setup SCSI packet
         uint8_t packet[12];
         packet[0] = ATAPI_CMD_READ;
@@ -297,7 +304,9 @@ namespace DeviceManager { namespace IDE {
         }
 
         // Send packet data
-        asm("rep outsw" ::"c"(6), "d"(ideInfo->channels[driveInfo->channel].IO), "S"(packet));
+        uint16_t* wPacket = (uint16_t*)packet;
+        for (int i = 0; i < 6; i++)
+            outw(ideInfo->channels[driveInfo->channel].IO, wPacket[i]);
 
         WaitIRQ();
 
@@ -306,7 +315,9 @@ namespace DeviceManager { namespace IDE {
             return 0;
         }
 
-        asm("rep insw" ::"c"(ATAPI_SECTOR_SIZE / 2), "d"(ideInfo->channels[driveInfo->channel].IO), "D"(buffer));
+        uint16_t* wBuffer = (uint16_t*)buffer;
+        for (int i = 0; i < ATAPI_SECTOR_SIZE / 2; i++)
+            wBuffer[i] = inw(ideInfo->channels[driveInfo->channel].IO);
 
         WaitIRQ();
 
@@ -327,12 +338,12 @@ namespace DeviceManager { namespace IDE {
         if (driveInfo->type == IDE_ATA)
             return ATAIO(driveInfo, ideInfo, 0, lba, buffer, bufferSize);
         else {
-            // Enable IRQs
-            WriteRegister(ideInfo, driveInfo->channel, ATA_REG_CONTROL, ideInfo->channels[driveInfo->channel].nIEN = irqInvoked = 0);
-
             // Select drive
             WriteRegister(ideInfo, driveInfo->channel, ATA_REG_HDDEVSEL, driveInfo->drive << 4);
             sleep(2);
+
+            // Enable IRQs
+            WriteRegister(ideInfo, driveInfo->channel, ATA_REG_CONTROL, ideInfo->channels[driveInfo->channel].nIEN = irqInvoked = 0);
 
             // Select PIO mode
             WriteRegister(ideInfo, driveInfo->channel, ATA_REG_FEATURES, 0);

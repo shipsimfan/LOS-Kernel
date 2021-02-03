@@ -42,6 +42,9 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
             ;
     }
 
+    // Allocate kernel interrupt stack
+    MemoryManager::Virtual::AllocatePage((virtAddr_t)0xFFFFFFFFFFFFFFF0, MemoryManager::Physical::AllocNextFreePage(), true);
+
     ProcessManager::ExecuteNewProcess(":0/LOS/SHELL.APP");
 
     while (1)
