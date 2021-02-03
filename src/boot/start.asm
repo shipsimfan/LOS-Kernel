@@ -82,6 +82,7 @@ pml4: times 512 dq 0
 ;======================================
 GLOBAL _start
 EXTERN kmain
+EXTERN SystemCallResponse
 _start:
     cli
 
@@ -135,7 +136,7 @@ _start:
     wrmsr
 
     xor eax, eax
-    mov edx, GDT64.data0 << 16
+    mov edx, (GDT64.data0 << 16) | GDT64.code0
     mov ecx, 0xC0000081
     wrmsr
 

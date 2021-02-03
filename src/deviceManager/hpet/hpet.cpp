@@ -54,7 +54,12 @@ namespace DeviceManager { namespace HPET {
 
     uint64_t currentTimeMillis = 0;
 
-    extern "C" void HPETTimerIRQ() { currentTimeMillis++; }
+    extern "C" void HPETTimerIRQ() {
+        currentTimeMillis++;
+
+        if (currentTimeMillis % 1000 == 0)
+            debugLogger.Log("System time: %is", currentTimeMillis / 1000);
+    }
 
     extern "C" void sleep(uint64_t milliseconds) {
         // Blocking sleep function

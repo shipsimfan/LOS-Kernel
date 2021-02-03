@@ -1,5 +1,6 @@
 #include <interrupt.h>
 
+#include <console.h>
 #include <dev.h>
 #include <logger.h>
 #include <mem/defs.h>
@@ -111,6 +112,8 @@ extern "C" void STIFunc();
 extern "C" void SpuriousISRHandler();
 extern "C" void TimerISRHandler();
 
+extern "C" void SystemCall();
+
 extern "C" void EnableAPIC();
 
 namespace InterruptHandler {
@@ -197,6 +200,25 @@ namespace InterruptHandler {
         EndIRQ(irqNumber);
     }
 
+    extern "C" void SystemCallHandler(uint64_t num, uint64_t arg1) {
+
+        switch (num) {
+        case 0:
+            Console::ClearScreen();
+            break;
+
+        case 1:
+            if (arg1 >= KERNEL_VMA)
+                break;
+
+            Console::DisplayString((const char*)arg1);
+            break;
+
+        default:
+            debugLogger.Log("System call number: %#llx", num);
+        }
+    }
+
     void InstallInterruptHandler(uint8_t interrupt, uint64_t offset) {
         idt[interrupt].offset1 = offset & 0xFFFF;
         idt[interrupt].offset2 = (offset >> 16) & 0xFFFF;
@@ -211,6 +233,10 @@ namespace InterruptHandler {
 
     void Init() {
         infoLogger.Log("Initializing interrupt handler . . .");
+
+        uint32_t low = (uint64_t)SystemCall & 0xFFFFFFFF;
+        uint32_t high = (uint64_t)SystemCall >> 32;
+        asm volatile("wrmsr" : : "c"(0xC0000082), "a"(low), "d"(high));
 
         for (int i = 0; i < 256; i++)
             interrupts[i] = InterruptType::UNUSED;

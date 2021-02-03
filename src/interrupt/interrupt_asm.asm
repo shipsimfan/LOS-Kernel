@@ -1,5 +1,28 @@
 BITS 64
 
+systemCallRSP: dq 0
+
+GLOBAL SystemCall
+EXTERN SystemCallHandler
+SystemCall:
+    ; RCX contains RIP, R11 contains RFLAGS
+    mov rax, systemCallRSP
+    mov [rax], rsp
+    mov rsp, 0xFFFFFFFFFFFFFFF0
+
+    push rcx
+    push r11
+
+    call SystemCallHandler
+
+    pop r11
+    pop rcx
+
+    mov rax, systemCallRSP
+    mov rsp, [rax]
+
+    o64 sysret
+
 idtr:
     .limit: dw  256 * 16 - 1
     .pointer: dq 0
