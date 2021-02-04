@@ -212,6 +212,9 @@ namespace InterruptHandler {
                 break;
 
             Console::DisplayString((const char*)arg1);
+
+            while (1)
+                ;
             break;
 
         default:
