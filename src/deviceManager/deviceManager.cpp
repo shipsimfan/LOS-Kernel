@@ -3,6 +3,7 @@
 #include <dev/hpet.h>
 #include <dev/ide.h>
 #include <dev/pci.h>
+#include <dev/ps2.h>
 #include <interrupt.h>
 #include <logger.h>
 #include <stdlib.h>
@@ -23,6 +24,8 @@ namespace DeviceManager {
             return false;
 
         IDE::RegisterIDEDriver();
+
+        PS2::RegisterPS2Driver();
 
         infoLogger.Log("Device manager initialized!");
         return true;

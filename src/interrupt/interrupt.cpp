@@ -2,6 +2,7 @@
 
 #include <console.h>
 #include <dev.h>
+#include <kernel/keyboard.h>
 #include <logger.h>
 #include <mem/defs.h>
 #include <mem/virtual.h>
@@ -200,8 +201,7 @@ namespace InterruptHandler {
         EndIRQ(irqNumber);
     }
 
-    extern "C" void SystemCallHandler(uint64_t num, uint64_t arg1) {
-
+    extern "C" uint64_t SystemCallHandler(uint64_t num, uint64_t arg1, uint64_t arg2) {
         switch (num) {
         case 0:
             Console::ClearScreen();
@@ -213,13 +213,19 @@ namespace InterruptHandler {
 
             Console::DisplayString((const char*)arg1);
 
-            while (1)
-                ;
             break;
+
+        case 2:
+            if (arg1 >= KERNEL_VMA)
+                break;
+
+            return ReadKey((char*)arg1, arg2);
 
         default:
             debugLogger.Log("System call number: %#llx", num);
         }
+
+        return 0;
     }
 
     void InstallInterruptHandler(uint8_t interrupt, uint64_t offset) {

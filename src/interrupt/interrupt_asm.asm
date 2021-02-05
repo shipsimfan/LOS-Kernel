@@ -18,8 +18,8 @@ SystemCall:
     pop r11
     pop rcx
 
-    mov rax, systemCallRSP
-    mov rsp, [rax]
+    mov rdi, systemCallRSP
+    mov rsp, [rdi]
 
     o64 sysret
 

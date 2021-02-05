@@ -8,6 +8,7 @@ namespace DeviceManager {
 #define DEVICE_DRIVER_SIGNATURE_PCI 2
 #define DEVICE_DRIVER_SIGNATURE_IDE 3
 #define DEVICE_DRIVER_SIGNATURE_ATA 4
+#define DEVICE_DRIVER_SIGNATURE_KEYBOARD 5
 
     struct DeviceDriver;
 
