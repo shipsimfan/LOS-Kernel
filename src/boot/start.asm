@@ -60,7 +60,7 @@ GDT64:
         dw 0                        ; Base 0:15
         db 0                        ; Base 16:23
         db 0b11101001               ; Present(1) - Ring 3 (11) - 0 - Type (1001)
-        db 0b10001111               ; Granularity(1) - 00 - Availability (0) - Limit 16:19
+        db 0b10000000               ; Granularity(1) - 00 - Availability (0) - Limit 16:19
         db 0   ; Base 24:31
         dd 0 ; Base 63:32
         db 0x00                     ; Reserved
@@ -113,22 +113,6 @@ _start:
 
     mov rax, pml4
     mov cr3, rax
-
-    mov rax, TSS + kernel_vma
-    mov rbx, GDT64 + GDT64.tss + 2
-    mov [rbx], ax
-
-    mov rbx, GDT64 + GDT64.tss + 4
-    shr rax, 16
-    mov [rbx], al
-
-    mov rbx, GDT64 + GDT64.tss + 7
-    shr rax, 8
-    mov [rbx], al
-
-    mov rbx, GDT64 + GDT64.tss + 8
-    shr rax, 8
-    mov [rbx], eax
     
     mov ecx, 0xC0000080
     rdmsr
@@ -136,31 +120,11 @@ _start:
     wrmsr
 
     xor eax, eax
-    mov edx, (GDT64.data0 << 16) | GDT64.code0
+    mov edx, (0x10 << 16) | 0x08
     mov ecx, 0xC0000081
     wrmsr
-
-    lgdt [GDT64.pointer]
-
-    mov rax, GDT64.code0
-    push rax
-    mov rax, _startGDT
-    push rax
-    ret
-
-_startGDT:
-    
-    mov ax, GDT64.data0
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
     
     mov rsp, stack_end
-
-    mov ax, GDT64.tss
-    ltr ax
 
     mov rax, kmain
     mov rdi, [mmap]

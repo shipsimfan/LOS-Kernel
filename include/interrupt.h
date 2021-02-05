@@ -6,6 +6,42 @@ namespace InterruptHandler {
 #pragma pack(push)
 #pragma pack(1)
 
+    struct GDTDescr {
+        uint16_t limitLow;
+        uint16_t baseLow;
+        uint8_t baseMid;
+        uint8_t access : 1;
+        uint8_t write : 1;
+        uint8_t conforming : 1;
+        uint8_t executable : 1;
+        uint8_t code : 1;
+        uint8_t dpl : 2;
+        uint8_t present : 1;
+        uint8_t limitHigh : 4;
+        uint8_t zero : 1;
+        uint8_t code64 : 1;
+        uint8_t size : 1;
+        uint8_t granularity : 1;
+        uint8_t baseHigh;
+    };
+
+    struct TSS {
+        uint32_t reserved0;
+        uint64_t rsp0;
+        uint64_t rsp1;
+        uint64_t rsp2;
+        uint64_t reserved1;
+        uint64_t ist1;
+        uint64_t ist2;
+        uint64_t ist3;
+        uint64_t ist4;
+        uint64_t ist5;
+        uint64_t ist6;
+        uint64_t ist7;
+        uint64_t reserved2;
+        uint32_t reserved3;
+    };
+
     struct IDTDescr {
         uint16_t offset1;  // Offset bits 0 .. 15
         uint16_t selector; // Code Segment Selector
@@ -49,6 +85,7 @@ namespace InterruptHandler {
 #pragma pack(pop)
 
     extern "C" IDTDescr idt[256];
+    extern "C" GDTDescr gdt[7];
 
     void Init();
     bool InitAPIC(void* madt);

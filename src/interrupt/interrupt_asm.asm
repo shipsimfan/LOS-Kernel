@@ -27,6 +27,37 @@ idtr:
     .limit: dw  256 * 16 - 1
     .pointer: dq 0
 
+gdtr:
+    .limit: dw 7 * 8 - 1
+    .pointer: dq 0
+
+GLOBAL InstallGDT
+EXTERN gdt
+InstallGDT:
+    push rax
+    push rbx
+    mov rbx, gdtr.pointer
+    mov rax, gdt
+    mov [rbx], rax
+
+    mov rbx, gdtr
+    lgdt [rbx]
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
+    mov ax, 0x28
+    ltr ax
+
+    pop rbx
+    pop rax
+
+    ret
+
 GLOBAL InstallIDT
 EXTERN idt
 InstallIDT:

@@ -106,6 +106,7 @@ extern "C" void IRQHandler14();
 extern "C" void IRQHandler15();
 
 extern "C" void InstallIDT();
+extern "C" void InstallGDT();
 
 extern "C" void CLIFunc();
 extern "C" void STIFunc();
@@ -162,6 +163,9 @@ namespace InterruptHandler {
     void (*irqHandlers[NUM_PIC_IRQ])();
 
     InterruptType interrupts[NUM_INTERRUPTS];
+
+    GDTDescr gdt[7];
+    TSS tss;
 
     IDTDescr idt[NUM_INTERRUPTS];
     uint32_t* localAPIC;
@@ -247,6 +251,151 @@ namespace InterruptHandler {
         uint32_t high = (uint64_t)SystemCall >> 32;
         asm volatile("wrmsr" : : "c"(0xC0000082), "a"(low), "d"(high));
 
+        // Setup GDT
+        // NULL descriptor
+        gdt[0].limitLow = 0;
+        gdt[0].baseLow = 0;
+        gdt[0].baseMid = 0;
+        gdt[0].access = 0;
+        gdt[0].write = 0;
+        gdt[0].conforming = 0;
+        gdt[0].executable = 0;
+        gdt[0].code = 0;
+        gdt[0].dpl = 0;
+        gdt[0].present = 0;
+        gdt[0].limitHigh = 0;
+        gdt[0].zero = 0;
+        gdt[0].code64 = 0;
+        gdt[0].size = 0;
+        gdt[0].granularity = 0;
+        gdt[0].baseHigh = 0;
+
+        // Code 0 descriptor
+        gdt[1].limitLow = 0xFFFF;
+        gdt[1].baseLow = 0;
+        gdt[1].baseMid = 0;
+        gdt[1].access = 0;
+        gdt[1].write = 1;
+        gdt[1].conforming = 0;
+        gdt[1].executable = 1;
+        gdt[1].code = 1;
+        gdt[1].dpl = 0;
+        gdt[1].present = 1;
+        gdt[1].limitHigh = 0xF;
+        gdt[1].zero = 0;
+        gdt[1].code64 = 1;
+        gdt[1].size = 0;
+        gdt[1].granularity = 1;
+        gdt[1].baseHigh = 0;
+
+        // Data 0 descriptor
+        gdt[2].limitLow = 0xFFFF;
+        gdt[2].baseLow = 0;
+        gdt[2].baseMid = 0;
+        gdt[2].access = 0;
+        gdt[2].write = 1;
+        gdt[2].conforming = 0;
+        gdt[2].executable = 0;
+        gdt[2].code = 1;
+        gdt[2].dpl = 0;
+        gdt[2].present = 1;
+        gdt[2].limitHigh = 0xF;
+        gdt[2].zero = 0;
+        gdt[2].code64 = 0;
+        gdt[2].size = 1;
+        gdt[2].granularity = 1;
+        gdt[2].baseHigh = 0;
+
+        // Code 3 descriptor
+        gdt[4].limitLow = 0xFFFF;
+        gdt[4].baseLow = 0;
+        gdt[4].baseMid = 0;
+        gdt[4].access = 0;
+        gdt[4].write = 1;
+        gdt[4].conforming = 0;
+        gdt[4].executable = 1;
+        gdt[4].code = 1;
+        gdt[4].dpl = 3;
+        gdt[4].present = 1;
+        gdt[4].limitHigh = 0xF;
+        gdt[4].zero = 0;
+        gdt[4].code64 = 1;
+        gdt[4].size = 0;
+        gdt[4].granularity = 1;
+        gdt[4].baseHigh = 0;
+
+        // Data 3 descriptor
+        gdt[3].limitLow = 0xFFFF;
+        gdt[3].baseLow = 0;
+        gdt[3].baseMid = 0;
+        gdt[3].access = 0;
+        gdt[3].write = 1;
+        gdt[3].conforming = 0;
+        gdt[3].executable = 0;
+        gdt[3].code = 1;
+        gdt[3].dpl = 3;
+        gdt[3].present = 1;
+        gdt[3].limitHigh = 0xF;
+        gdt[3].zero = 0;
+        gdt[3].code64 = 0;
+        gdt[3].size = 1;
+        gdt[3].granularity = 1;
+        gdt[3].baseHigh = 0;
+
+        // TSS descriptor
+        uint64_t tssBase = (uint64_t)(&tss);
+        gdt[5].limitLow = sizeof(TSS);
+        gdt[5].baseLow = tssBase & 0xFFFF;
+        gdt[5].baseMid = (tssBase >> 16) & 0xFF;
+        gdt[5].access = 1;
+        gdt[5].write = 0;
+        gdt[5].conforming = 0;
+        gdt[5].executable = 1;
+        gdt[5].code = 0;
+        gdt[5].dpl = 3;
+        gdt[5].present = 1;
+        gdt[5].limitHigh = 0;
+        gdt[5].zero = 0;
+        gdt[5].code64 = 0;
+        gdt[5].size = 0;
+        gdt[5].granularity = 1;
+        gdt[5].baseHigh = (tssBase >> 24) & 0xFF;
+        gdt[6].limitLow = (tssBase >> 32) & 0xFFFF;
+        gdt[6].baseLow = (tssBase >> 48) & 0xFFFF;
+        gdt[6].baseMid = 0;
+        gdt[6].access = 0;
+        gdt[6].write = 0;
+        gdt[6].conforming = 0;
+        gdt[6].executable = 0;
+        gdt[6].code = 0;
+        gdt[6].dpl = 0;
+        gdt[6].present = 0;
+        gdt[6].limitHigh = 0;
+        gdt[6].zero = 0;
+        gdt[6].code64 = 0;
+        gdt[6].size = 0;
+        gdt[6].granularity = 0;
+        gdt[6].baseHigh = 0;
+
+        // TSS
+        tss.reserved0 = 0;
+        tss.rsp0 = 0xFFFFFFFFFFFFFFF0;
+        tss.rsp1 = 0;
+        tss.rsp2 = 0;
+        tss.reserved1 = 0;
+        tss.ist1 = 0;
+        tss.ist2 = 0;
+        tss.ist3 = 0;
+        tss.ist4 = 0;
+        tss.ist5 = 0;
+        tss.ist6 = 0;
+        tss.ist7 = 0;
+        tss.reserved2 = 0;
+        tss.reserved3 = 0;
+
+        InstallGDT();
+
+        // Setup Interrupts
         for (int i = 0; i < 256; i++)
             interrupts[i] = InterruptType::UNUSED;
 
