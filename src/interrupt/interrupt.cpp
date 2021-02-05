@@ -458,6 +458,11 @@ namespace InterruptHandler {
         localAPIC = (uint32_t*)((uint64_t)madt->localAPICAddress + KERNEL_VMA);
         MemoryManager::Virtual::AllocatePage(localAPIC, madt->localAPICAddress, true);
 
+        // Initialize the Local APIC
+        interrupts[0xFF] = InterruptType::SPURIOUS;
+        InstallInterruptHandler(0xFF, (uint64_t)SpuriousISRHandler);
+        localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0x1FF;
+
         // Verify 8259 PICs
         if ((madt->flags & 1) == 0) {
             errorLogger.Log("No 8259 PICs installed!");
