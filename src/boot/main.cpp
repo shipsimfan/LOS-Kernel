@@ -36,6 +36,8 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
             ;
     }
 
+    Console::InitDoubleBuffering();
+
     ProcessManager::Init();
 
     if (!DeviceManager::Init(rdsp)) {

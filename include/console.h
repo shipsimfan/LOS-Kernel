@@ -22,6 +22,7 @@ namespace Console {
 #pragma pack(pop)
 
     void Init(GraphicsInfo* gmode);
+    void InitDoubleBuffering();
 
     bool DisplayCharacter(char character);
     int DisplayString(const char* string);
