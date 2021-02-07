@@ -48,6 +48,12 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
 
     debugLogger.Log("Shell PID: %i", pid);
 
+    uint64_t shellStatus;
+    ProcessManager::WaitPID(pid, &shellStatus);
+
+    debugLogger.Log("Shell status: %i", shellStatus);
+    debugLogger.Log("We should shutdown here");
+
     while (1)
         ;
 }

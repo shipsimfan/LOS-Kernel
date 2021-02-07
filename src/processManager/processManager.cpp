@@ -9,6 +9,7 @@
 namespace ProcessManager {
     extern "C" void TaskEnter(void* entry, Process* newProcess);
     extern "C" void TaskExit();
+    extern "C" void TaskSwitch();
 
     Process* hash[PROCESS_HASH_SIZE];
     uint64_t nextPID;
@@ -41,6 +42,7 @@ namespace ProcessManager {
         currentProcess->queueNext = nullptr;
         currentProcess->hashPrev = nullptr;
         currentProcess->hashNext = nullptr;
+        currentProcess->exitQueue = nullptr;
 
         hash[0] = currentProcess;
 
@@ -102,6 +104,7 @@ namespace ProcessManager {
 
         // Set queue next
         newProcess->queueNext = nullptr;
+        newProcess->exitQueue = nullptr;
 
         // Set RSP
         newProcess->kernelStackBase = (uint64_t)(&newProcess->kernelStack);
@@ -161,9 +164,24 @@ namespace ProcessManager {
         return newProcess->pid;
     }
 
-    void Exit() {
+    void Exit(uint64_t status) {
         // Save old process
         Process* oldProcess = currentProcess;
+
+        // Set status codes
+        for (Process* p = oldProcess->exitQueue; p != nullptr; p = p->queueNext)
+            p->queueData = status;
+
+        // Awaken exit queue
+        if (runningQueue == nullptr)
+            runningQueue = oldProcess->exitQueue;
+        else {
+            Process* p;
+            for (p = runningQueue; p->queueNext != nullptr; p = p->queueNext)
+                ;
+
+            p->queueNext = oldProcess->exitQueue;
+        }
 
         // Switch process
         if (runningQueue == nullptr) {
@@ -186,6 +204,10 @@ namespace ProcessManager {
         if (oldProcess->hashNext != nullptr)
             oldProcess->hashNext->hashPrev = oldProcess->hashPrev;
 
+        uint64_t hashIndex = oldProcess->pid % PROCESS_HASH_SIZE;
+        if (hash[hashIndex] == oldProcess)
+            hash[hashIndex] = oldProcess->hashNext;
+
         // Clear address space
         MemoryManager::Virtual::ClearPageStructure(oldProcess->cr3);
 
@@ -202,5 +224,48 @@ namespace ProcessManager {
 
         // Switch
         TaskExit();
+    }
+
+    extern "C" void Schedule() {
+        if (runningQueue == nullptr) {
+            errorLogger.Log("Nothing to go to!");
+            while (1)
+                ;
+        }
+
+        currentProcess = runningQueue;
+        runningQueue = runningQueue->queueNext;
+
+        MemoryManager::Virtual::SetPageStructure(currentProcess->cr3);
+        InterruptHandler::SetTSS(currentProcess->kernelStackBase);
+        currentProcessStackBase = currentProcess->kernelStackBase;
+    }
+
+    void WaitPID(uint64_t pid, uint64_t* status) {
+        // Verify pid
+        uint64_t hashIndex = pid % PROCESS_HASH_SIZE;
+        Process* p;
+        for (p = hash[hashIndex]; p != nullptr; p = p->hashNext) {
+            if (p->pid == pid)
+                break;
+            else if (p->pid < pid) {
+                *status = 0xFFFFFFFFFFFFFFFF;
+                return;
+            }
+        }
+
+        if (p == nullptr) {
+            *status = 0xFFFFFFFFFFFFFFFF;
+            return;
+        }
+
+        // Place current process in wait queue
+        currentProcess->queueNext = p->exitQueue;
+        p->exitQueue = currentProcess;
+
+        // Suspend this process
+        TaskSwitch();
+
+        *status = currentProcess->queueData;
     }
 }; // namespace ProcessManager

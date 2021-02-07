@@ -209,7 +209,7 @@ namespace InterruptHandler {
     extern "C" uint64_t SystemCallHandler(uint64_t num, uint64_t arg1, uint64_t arg2) {
         switch (num) {
         case 0:
-            ProcessManager::Exit();
+            ProcessManager::Exit(arg1);
             errorLogger.Log("We shouldn't be here!");
             while (1)
                 ;
@@ -233,6 +233,13 @@ namespace InterruptHandler {
                 break;
 
             return ProcessManager::Execute((const char*)arg1);
+
+        case 4:
+            if (arg2 >= KERNEL_VMA)
+                break;
+
+            ProcessManager::WaitPID(arg1, (uint64_t*)arg2);
+            break;
 
         default:
             debugLogger.Log("System call number: %#llx", num);

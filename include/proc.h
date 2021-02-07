@@ -25,6 +25,9 @@ namespace ProcessManager {
         Process* hashPrev;
 
         Process* queueNext;
+        uint64_t queueData;
+
+        Process* exitQueue;
 
         uint8_t kernelStack[KERNEL_STACK_SIZE];
     };
@@ -37,5 +40,7 @@ namespace ProcessManager {
     void Init();
 
     uint64_t Execute(const char* filepath);
-    void Exit();
+    void Exit(uint64_t status);
+
+    void WaitPID(uint64_t pid, uint64_t* status);
 } // namespace ProcessManager
