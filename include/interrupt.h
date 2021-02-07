@@ -96,6 +96,8 @@ namespace InterruptHandler {
 
     void SetIRQ(uint8_t irq, void (*irqHandler)());
 
+    void SetTSS(uint64_t newRSP);
+
     void SetMask(uint8_t irq);
     void ClearMask(uint8_t irq);
 

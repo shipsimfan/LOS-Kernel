@@ -54,6 +54,11 @@ namespace DeviceManager {
         DeviceDriver* parent = driver->parent;
         if (parent->RegisterChildDriver != nullptr) {
             DeviceDriverNode* newNode = (DeviceDriverNode*)malloc(sizeof(DeviceDriverNode));
+            if (newNode == nullptr) {
+                errorLogger.Log("Unable to allocate new node!");
+                return false;
+            }
+
             newNode->driver = driver;
 
             newNode->next = parent->childHead;

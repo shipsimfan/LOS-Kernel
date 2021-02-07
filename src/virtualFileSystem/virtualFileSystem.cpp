@@ -164,6 +164,7 @@ namespace VirtualFileSystem {
         uint64_t bytesRead = file->fileSystem->driver->ReadFile(file, 0, filePtr, file->fileSize);
         if (bytesRead == 0) {
             errorLogger.Log("Failed to read file!");
+            free(filePtr);
             return nullptr;
         }
 

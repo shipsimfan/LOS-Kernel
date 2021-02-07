@@ -36,16 +36,17 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
             ;
     }
 
+    ProcessManager::Init();
+
     if (!DeviceManager::Init(rdsp)) {
         errorLogger.Log("Unable to continue boot! Fatal error while starting the device manager!");
         while (1)
             ;
     }
 
-    // Allocate kernel interrupt stack
-    MemoryManager::Virtual::AllocatePage((virtAddr_t)0xFFFFFFFFFFFFFFF0, MemoryManager::Physical::AllocNextFreePage(), true);
+    uint64_t pid = ProcessManager::Execute(":0/LOS/SHELL.APP");
 
-    ProcessManager::ExecuteNewProcess(":0/LOS/SHELL.APP");
+    debugLogger.Log("Shell PID: %i", pid);
 
     while (1)
         ;

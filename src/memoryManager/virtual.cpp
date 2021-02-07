@@ -204,7 +204,7 @@ namespace MemoryManager {
                     PD* pd = pdpt->GetEntry(pdIndex);
                     if (pd->entries[ptIndex] != 0) {
                         PT* pt = pd->GetEntry(ptIndex);
-                        Physical::FreePage(pt->GetEntry(ptIndex));
+                        Physical::FreePage(pt->entries[ptIndex] & 0xFFFFFFFFFFFFF000);
                         pt->ClearEntry(ptIndex);
                     }
                 }
@@ -243,9 +243,48 @@ namespace MemoryManager {
             return phys;
         }
 
+        uint64_t GetSystemPageStructure() {
+            debugLogger.Log("Kernel PML4: %#llx", kernelPML4);
+
+            return (((uint64_t)kernelPML4) & 0xFFFFFFFFFFFFF000) - KERNEL_VMA;
+        }
+
         void SetPageStructure(uint64_t cr3) {
             currentPML4 = (PML4*)(cr3 + KERNEL_VMA);
             SetCurrentPML4(cr3);
+        }
+
+        void ClearPageStructure(uint64_t cr3) {
+            PML4* pml4 = (PML4*)(cr3 + KERNEL_VMA);
+            for (int i = 0; i < 256; i++) {
+                if (pml4->entries[i] != 0) {
+                    PDPT* pdpt = pml4->GetEntry(i);
+
+                    for (int j = 0; j < 512; j++) {
+                        if (pdpt->entries[j] != 0) {
+                            PD* pd = pdpt->GetEntry(j);
+
+                            for (int k = 0; k < 512; k++) {
+                                if (pd->entries[k] != 0) {
+                                    PT* pt = pd->GetEntry(k);
+
+                                    for (int l = 0; l < 512; l++)
+                                        if (pt->entries[l] != 0)
+                                            Physical::FreePage(pt->entries[l] & 0xFFFFFFFFFFFFF000);
+
+                                    Physical::FreePage(pd->entries[k] & 0xFFFFFFFFFFFFF000);
+                                }
+                            }
+
+                            Physical::FreePage(pdpt->entries[j] & 0xFFFFFFFFFFFFF000);
+                        }
+                    }
+
+                    Physical::FreePage(pml4->entries[i] & 0xFFFFFFFFFFFFF000);
+                }
+            }
+
+            Physical::FreePage(cr3);
         }
     } // namespace Virtual
 } // namespace MemoryManager

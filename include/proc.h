@@ -3,13 +3,39 @@
 #include <interrupt.h>
 #include <mem/virtual.h>
 
-namespace ProcessManager {
-    struct Process {
-        const char* name;
+#define KERNEL_STACK_SIZE 8192
+#define PROCESS_HASH_SIZE 1024
 
-        InterruptHandler::CPUState cpuState;
+namespace ProcessManager {
+#pragma pack(push)
+#pragma pack(1)
+
+    struct Process {
+        uint64_t rsp;
+        uint64_t kernelStackBase;
+
         uint64_t cr3;
+
+        const char* name;
+        uint64_t pid;
+
+        Process* parent;
+
+        Process* hashNext;
+        Process* hashPrev;
+
+        Process* queueNext;
+
+        uint8_t kernelStack[KERNEL_STACK_SIZE];
     };
 
-    void ExecuteNewProcess(const char* filepath);
+#pragma pack(pop)
+
+    extern "C" Process* currentProcess;
+    extern "C" uint64_t currentProcessStackBase;
+
+    void Init();
+
+    uint64_t Execute(const char* filepath);
+    void Exit();
 } // namespace ProcessManager

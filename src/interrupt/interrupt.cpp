@@ -6,6 +6,7 @@
 #include <logger.h>
 #include <mem/defs.h>
 #include <mem/virtual.h>
+#include <proc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -208,8 +209,10 @@ namespace InterruptHandler {
     extern "C" uint64_t SystemCallHandler(uint64_t num, uint64_t arg1, uint64_t arg2) {
         switch (num) {
         case 0:
-            Console::ClearScreen();
-            break;
+            ProcessManager::Exit();
+            errorLogger.Log("We shouldn't be here!");
+            while (1)
+                ;
 
         case 1:
             if (arg1 >= KERNEL_VMA)
@@ -224,6 +227,12 @@ namespace InterruptHandler {
                 break;
 
             return ReadKey((char*)arg1, arg2);
+
+        case 3:
+            if (arg1 >= KERNEL_VMA)
+                break;
+
+            return ProcessManager::Execute((const char*)arg1);
 
         default:
             debugLogger.Log("System call number: %#llx", num);
@@ -576,6 +585,8 @@ namespace InterruptHandler {
 
         irqHandlers[irq] = irqHandler;
     }
+
+    void SetTSS(uint64_t newRSP) { tss.rsp0 = newRSP; }
 
     void SetMask(uint8_t irq) {
         uint16_t port = MASTER_PIC_DATA;

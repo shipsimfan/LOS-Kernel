@@ -1,14 +1,18 @@
 BITS 64
 
-systemCallRSP: dq 0
+EXTERN currentProcess
+EXTERN currentProcessStackBase
 
 GLOBAL SystemCall
 EXTERN SystemCallHandler
 SystemCall:
     ; RCX contains RIP, R11 contains RFLAGS
-    mov rax, systemCallRSP
+    mov rbx, currentProcess
+    mov rax, [rbx]
     mov [rax], rsp
-    mov rsp, 0xFFFFFFFFFFFFFFF0
+
+    mov rbx, currentProcessStackBase
+    mov rsp, [rbx]
 
     push rcx
     push r11
@@ -18,8 +22,9 @@ SystemCall:
     pop r11
     pop rcx
 
-    mov rdi, systemCallRSP
-    mov rsp, [rdi]
+    mov rdi, currentProcess
+    mov rsi, [rdi]
+    mov rsp, [rsi]
 
     o64 sysret
 

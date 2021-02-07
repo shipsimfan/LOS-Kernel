@@ -34,7 +34,10 @@ namespace MemoryManager {
         void FreePage(virtAddr_t addr);
 
         uint64_t CreateNewPagingStructure();
+        uint64_t GetSystemPageStructure();
 
         void SetPageStructure(uint64_t cr3);
+
+        void ClearPageStructure(uint64_t cr3);
     }; // namespace Virtual
 } // namespace MemoryManager
