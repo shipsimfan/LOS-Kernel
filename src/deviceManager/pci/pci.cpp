@@ -32,6 +32,7 @@ namespace DeviceManager { namespace PCI {
             return;
         }
 
+        device->deviceMutex.Lock();
         PCIRegisterInfo* tmpInfo = (PCIRegisterInfo*)device->driverInfo;
         uint8_t headerType = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_HEADER_TYPE);
         PCIDeviceInfo* devInfo;
@@ -39,6 +40,7 @@ namespace DeviceManager { namespace PCI {
             StandardPCIDeviceInfo* stdInfo = (StandardPCIDeviceInfo*)malloc(sizeof(StandardPCIDeviceInfo));
             if (stdInfo == nullptr) {
                 errorLogger.Log("Unable to allocate pci device info!");
+                device->deviceMutex.Unlock();
                 return;
             }
 
@@ -55,6 +57,7 @@ namespace DeviceManager { namespace PCI {
             devInfo = (PCIDeviceInfo*)malloc(sizeof(PCIDeviceInfo));
             if (devInfo == nullptr) {
                 errorLogger.Log("Unable to allocate pci info!");
+                device->deviceMutex.Unlock();
                 return;
             }
         }
@@ -70,6 +73,8 @@ namespace DeviceManager { namespace PCI {
         devInfo->progIF = ReadConfigB(tmpInfo->bus, tmpInfo->device, tmpInfo->function, PCI_CONFIG_PROG_IF);
 
         device->driverInfo = devInfo;
+
+        device->deviceMutex.Unlock();
     }
 
     uint32_t PCIToRegister(uint8_t bus, uint8_t device, uint8_t func, uint8_t offset) {
@@ -101,6 +106,9 @@ namespace DeviceManager { namespace PCI {
         newDevice->name = (char*)"PCI Device";
         newDevice->driver = &PCIDriver;
         newDevice->driverInfo = &newPCIDevice;
+
+        newDevice->deviceMutex.queue = nullptr;
+        newDevice->deviceMutex.value = true;
 
         RegisterDevice(newDevice, &PCIDriver);
 

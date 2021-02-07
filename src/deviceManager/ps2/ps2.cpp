@@ -127,6 +127,8 @@ namespace DeviceManager { namespace PS2 {
         if (keyboardPort == 0xFF)
             return 0;
 
+        ports[keyboardPort].deviceMutex.Lock();
+
         // Enable scanning
         WriteAndWait(keyboardPort, PS2_DEV_CMD_ENABLE_SCAN);
 
@@ -138,6 +140,7 @@ namespace DeviceManager { namespace PS2 {
 
             if (portData[keyboardPort] == 0x5A) {
                 buffer[i] = 0;
+                ports[keyboardPort].deviceMutex.Unlock();
                 return i;
             }
 
@@ -157,6 +160,8 @@ namespace DeviceManager { namespace PS2 {
 
         // Disable scanning
         WriteAndWait(keyboardPort, PS2_DEV_CMD_DISABLE_SCAN);
+
+        ports[keyboardPort].deviceMutex.Unlock();
 
         return size;
     }
@@ -265,6 +270,11 @@ namespace DeviceManager { namespace PS2 {
         // Initialize the PS/2 Controller
         portExists[0] = false;
         portExists[1] = false;
+
+        ports[0].deviceMutex.queue = nullptr;
+        ports[0].deviceMutex.value = true;
+        ports[1].deviceMutex.queue = nullptr;
+        ports[1].deviceMutex.value = true;
 
         // Disable devices
         outb(PS2_REG_COMMAND, PS2_CMD_DISABLE_FIRST_PORT);

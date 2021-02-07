@@ -328,15 +328,22 @@ namespace DeviceManager { namespace IDE {
     }
 
     uint64_t IDERead(Device* device, uint64_t lba, void* buffer, size_t bufferSize) {
+        // Lock the device
+        device->deviceMutex.Lock();
+
         // Verify device type
-        if (device->driverDeviceType == (uint64_t)-1)
+        if (device->driverDeviceType == (uint64_t)-1) {
+            device->deviceMutex.Unlock();
             return 0;
+        }
 
         IDEDriveInfo* driveInfo = (IDEDriveInfo*)device->driverInfo;
         IDEDeviceInfo* ideInfo = (IDEDeviceInfo*)driveInfo->device;
 
+        uint64_t ret = 0;
+
         if (driveInfo->type == IDE_ATA)
-            return ATAIO(driveInfo, ideInfo, 0, lba, buffer, bufferSize);
+            ret = ATAIO(driveInfo, ideInfo, 0, lba, buffer, bufferSize);
         else {
             // Select drive
             WriteRegister(ideInfo, driveInfo->channel, ATA_REG_HDDEVSEL, driveInfo->drive << 4);
@@ -357,16 +364,21 @@ namespace DeviceManager { namespace IDE {
             uint64_t val;
             for (size_t i = 0; i < numSectors; i++) {
                 val = ATAPIRead(driveInfo, ideInfo, lba, buffer);
-                if (val == 0)
+                if (val == 0) {
+                    device->deviceMutex.Unlock();
                     return 0;
+                }
 
                 bytesRead += val;
                 buffer = (void*)((uint64_t)buffer + ATAPI_SECTOR_SIZE);
                 lba++;
             }
 
-            return bytesRead;
+            ret = bytesRead;
         }
+
+        device->deviceMutex.Unlock();
+        return ret;
     }
 
     uint64_t IDEWrite(Device* device, uint64_t address, void* buffer, size_t bufferSize) { return 0; }
@@ -374,12 +386,22 @@ namespace DeviceManager { namespace IDE {
     void IDERegisterChildDriver(DeviceDriver* driver) {}
 
     bool IDEVerifyDevice(Device* device) {
+        device->deviceMutex.Lock();
         PCI::PCIDeviceInfo* devInfo = (PCI::PCIDeviceInfo*)device->driverInfo;
 
-        return devInfo->classCode == 1 && devInfo->subClass == 1;
+        bool ret = devInfo->classCode == 1 && devInfo->subClass == 1;
+
+        device->deviceMutex.Unlock();
+        return ret;
     }
 
     void IDERegisterDevice(Device* device) {
+        if (device == nullptr) {
+            errorLogger.Log("Null device!");
+            return;
+        }
+
+        device->deviceMutex.Lock();
         PCI::StandardPCIDeviceInfo* devInfo = (PCI::StandardPCIDeviceInfo*)device->driverInfo;
 
         IDEDeviceInfo* ideInfo = (IDEDeviceInfo*)malloc(sizeof(IDEDeviceInfo));
@@ -547,6 +569,9 @@ namespace DeviceManager { namespace IDE {
                 newDrive->next = IDEDriver.deviceHead;
                 newDrive->prev = nullptr;
 
+                newDrive->deviceMutex.queue = nullptr;
+                newDrive->deviceMutex.value = true;
+
                 if (IDEDriver.deviceHead != nullptr)
                     IDEDriver.deviceHead->prev = newDrive;
 
@@ -554,8 +579,12 @@ namespace DeviceManager { namespace IDE {
 
                 infoLogger.Log("%s Drive at %s %s with size %i bytes - %s", (const char*[]){"ATA", "ATAPI"}[driveInfo->type], (const char*[]){"Primary", "Secondary"}[driveInfo->channel], (const char*[]){"Master", "Slave"}[driveInfo->drive], driveInfo->size, driveInfo->model);
 
+                device->deviceMutex.Unlock();
                 VirtualFileSystem::RegisterDrive(newDrive, driveInfo->size);
+                device->deviceMutex.Lock();
             }
+
+            device->deviceMutex.Unlock();
         }
     } // namespace IDE
 

@@ -260,3 +260,42 @@ namespace ProcessManager {
         *status = currentProcess->queueData;
     }
 }; // namespace ProcessManager
+
+void Mutex::Lock() {
+    if (value)
+        value = false;
+    else {
+        if (queue == nullptr)
+            queue = ProcessManager::currentProcess;
+        else {
+            ProcessManager::Process* p;
+            for (p = queue; p->queueNext != nullptr; p = p->queueNext)
+                ;
+
+            p->queueNext = ProcessManager::currentProcess;
+        }
+
+        ProcessManager::currentProcess->queueNext = nullptr;
+
+        ProcessManager::TaskSwitch();
+    }
+}
+
+void Mutex::Unlock() {
+    if (queue == nullptr)
+        value = true;
+    else {
+        if (ProcessManager::runningQueue == nullptr)
+            ProcessManager::runningQueue = queue;
+        else {
+            ProcessManager::Process* p;
+            for (p = ProcessManager::runningQueue; p->queueNext != nullptr; p = p->queueNext)
+                ;
+
+            p->queueNext = queue;
+        }
+
+        queue = queue->queueNext;
+        queue->queueNext = nullptr;
+    }
+}

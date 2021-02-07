@@ -1,5 +1,6 @@
 #pragma once
 
+#include <proc.h>
 #include <types.h>
 
 namespace DeviceManager {
@@ -19,6 +20,8 @@ namespace DeviceManager {
         void* driverInfo;
         Device* next;
         Device* prev;
+
+        Mutex deviceMutex;
     };
 
     struct DeviceDriverNode {

@@ -44,3 +44,11 @@ namespace ProcessManager {
 
     void WaitPID(uint64_t pid, uint64_t* status);
 } // namespace ProcessManager
+
+struct Mutex {
+    bool value;
+    ProcessManager::Process* queue;
+
+    void Lock();
+    void Unlock();
+};
