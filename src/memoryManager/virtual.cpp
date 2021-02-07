@@ -243,11 +243,7 @@ namespace MemoryManager {
             return phys;
         }
 
-        uint64_t GetSystemPageStructure() {
-            debugLogger.Log("Kernel PML4: %#llx", kernelPML4);
-
-            return (((uint64_t)kernelPML4) & 0xFFFFFFFFFFFFF000) - KERNEL_VMA;
-        }
+        uint64_t GetSystemPageStructure() { return (((uint64_t)kernelPML4) & 0xFFFFFFFFFFFFF000) - KERNEL_VMA; }
 
         void SetPageStructure(uint64_t cr3) {
             currentPML4 = (PML4*)(cr3 + KERNEL_VMA);

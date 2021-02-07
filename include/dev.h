@@ -80,4 +80,7 @@ namespace DeviceManager {
     uint32_t ind(uint16_t port);
 
     void IOWait();
+
 } // namespace DeviceManager
+
+extern "C" void Shutdown();

@@ -199,7 +199,6 @@ namespace VirtualFileSystem {
                 bufToUse = malloc(bufToUseSize);
             }
 
-            debugLogger.Log("Loading %i bytes from %i", bufToUseSize, file->driverInfo);
             file->fileSystem->device->driver->ReadStream(file->fileSystem->device, (uint64_t)file->driverInfo, bufToUse, bufToUseSize);
 
             if (buffer != bufToUse) {

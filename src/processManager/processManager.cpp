@@ -27,7 +27,6 @@ namespace ProcessManager {
         currentProcess->name = "System";
         currentProcess->pid = 0;
         currentProcess->cr3 = MemoryManager::Virtual::GetSystemPageStructure();
-        debugLogger.Log("CR3: %#llx", currentProcess->cr3);
 
         // Set RSP
         currentProcess->kernelStackBase = (uint64_t)(&currentProcess->kernelStack);
@@ -36,8 +35,6 @@ namespace ProcessManager {
             currentProcess->kernelStackBase -= currentProcess->kernelStackBase % 16;
         currentProcess->rsp = currentProcess->kernelStackBase;
         currentProcessStackBase = currentProcess->kernelStackBase;
-
-        debugLogger.Log("System kernel stack size: %#llx", currentProcess->kernelStackBase);
 
         currentProcess->queueNext = nullptr;
         currentProcess->hashPrev = nullptr;
@@ -113,8 +110,6 @@ namespace ProcessManager {
             newProcess->kernelStackBase -= newProcess->kernelStackBase % 16;
         newProcess->rsp = newProcess->kernelStackBase;
 
-        debugLogger.Log("Kernel Stack base: %#llx", newProcess->kernelStackBase);
-
         // Change memory space
         MemoryManager::Virtual::SetPageStructure(newProcess->cr3);
 
@@ -153,12 +148,8 @@ namespace ProcessManager {
         // Set the stack base
         currentProcessStackBase = newProcess->kernelStackBase;
 
-        debugLogger.Log("New Process: %#llx", newProcess);
-
         // Enter the task
         TaskEnter(entry, newProcess);
-
-        debugLogger.Log("Current Process: %#llx", currentProcess);
 
         // Return the PID
         return newProcess->pid;

@@ -183,7 +183,6 @@ namespace DeviceManager { namespace PS2 {
         }
 
         // Identify device
-        debugLogger.Log("Umm");
         if (!WriteAndWait(port, PS2_DEV_CMD_DISABLE_SCAN)) {
             errorLogger.Log("Disable scan timeout (%#x)", portData[port]);
             portExists[port] = false;

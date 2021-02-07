@@ -46,13 +46,10 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
 
     uint64_t pid = ProcessManager::Execute(":0/LOS/SHELL.APP");
 
-    debugLogger.Log("Shell PID: %i", pid);
-
     uint64_t shellStatus;
     ProcessManager::WaitPID(pid, &shellStatus);
 
-    debugLogger.Log("Shell status: %i", shellStatus);
-    debugLogger.Log("We should shutdown here");
+    Shutdown();
 
     while (1)
         ;

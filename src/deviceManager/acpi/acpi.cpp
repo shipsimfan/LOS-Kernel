@@ -85,4 +85,14 @@ namespace DeviceManager { namespace ACPI {
 
         return ret;
     }
+
+    extern "C" void Shutdown() {
+        AcpiEnterSleepStatePrep(5);
+        InterruptHandler::DisableInterrupts();
+        AcpiEnterSleepState(5);
+
+        errorLogger.Log("Shouldn't be here!");
+        while (1)
+            ;
+    }
 }} // namespace DeviceManager::ACPI
