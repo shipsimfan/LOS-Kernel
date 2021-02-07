@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mem/defs.h>
-#include <types.h>
+#include <stdint.h>
 
 namespace MemoryManager {
 #pragma pack(push)

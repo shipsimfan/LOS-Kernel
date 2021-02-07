@@ -1,6 +1,6 @@
 #pragma once
 
-#include <types.h>
+#include <stdint.h>
 
 #define PCI_CONFIG_VENDOR_ID 0x00
 #define PCI_CONFIG_DEVICE_ID 0x02

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <types.h>
+#include <stdint.h>
 
 // Sizes
 #define KILOBYTE (size_t)1024

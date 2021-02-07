@@ -1,7 +1,6 @@
 #pragma once
 
 #include <proc.h>
-#include <types.h>
 
 namespace DeviceManager {
 #define DEVICE_DRIVER_SIGNATURE_UNKNOWN 0

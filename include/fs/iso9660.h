@@ -1,6 +1,6 @@
 #pragma once
 
-#include <types.h>
+#include <stdint.h>
 
 namespace VirtualFileSystem { namespace ISO9660 {
 #pragma pack(push)
