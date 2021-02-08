@@ -65,13 +65,15 @@ namespace VirtualFileSystem {
         }
     }
 
-    File* GetFile(const char* filepath) {
-        char* ptr = (char*)filepath;
+    void RegisterDrive(DeviceManager::Device* drive, uint64_t driveSize);
+
+    int Open(const char* filename) {
+        char* ptr = (char*)filename;
 
         // Find the starting directory
         Directory* baseDirectory = nullptr;
 
-        if (filepath[0] == ':') {
+        if (*ptr == ':') {
             ptr++;
             // Relative to root of drive
             // Parse drive number
@@ -81,7 +83,7 @@ namespace VirtualFileSystem {
                     driveNumber = driveNumber * 10 + (*ptr - '0');
                 else {
                     errorLogger.Log("Invalid filepath!");
-                    return nullptr;
+                    return -1;
                 }
 
                 ptr++;
@@ -91,13 +93,13 @@ namespace VirtualFileSystem {
 
             if (driveNumber >= fileSystemsSize || fileSystems[driveNumber] == nullptr) {
                 errorLogger.Log("Invalid drive number! (%i)", driveNumber);
-                return nullptr;
+                return -1;
             }
 
             baseDirectory = fileSystems[driveNumber]->rootDir;
         } else {
             errorLogger.Log("Unable to handle relative directories yet!");
-            return nullptr;
+            return -1;
         }
 
         // Count the number of '/' characters
@@ -142,34 +144,114 @@ namespace VirtualFileSystem {
             }
 
             if (!foundDir) {
-                errorLogger.Log("Unable to find path %s", filepath);
-                return nullptr;
+                errorLogger.Log("Unable to find path %s", filename);
+                return -1;
             }
         }
 
         // Find the file
-        const char* filename = ptr;
-        for (File* file = currentDirectory->subFiles; file != nullptr; file = file->next) {
-            if (strcmp(filename, file->name) == 0 && strcmp(extension, file->extension) == 0)
-                return file;
+        const char* filepath = ptr;
+        File* file = nullptr;
+        for (File* f = currentDirectory->subFiles; f != nullptr; f = f->next) {
+            if (strcmp(filepath, f->name) == 0 && strcmp(extension, f->extension) == 0) {
+                file = f;
+                break;
+            }
         }
 
-        errorLogger.Log("Unable to find file %s", filepath);
-        return nullptr;
+        if (file == nullptr) {
+            errorLogger.Log("Unable to find file %s", filepath);
+            return -1;
+        }
+
+        // See if we can get the file
+        if (file->lock < 0) {
+            errorLogger.Log("Unable to open file, already opened for writing");
+            return -1;
+        }
+
+        file->lock++;
+
+        // Create the file descriptor
+        FileDescriptor* newFD = (FileDescriptor*)malloc(sizeof(FileDescriptor));
+        newFD->file = file;
+        newFD->offset = 0;
+
+        // Insert new file descriptor
+        ProcessManager::Process* p = ProcessManager::GetCurrentProcess();
+        FileDescriptor** fd = (FileDescriptor**)p->fd;
+        for (int i = 0; i < p->fdSize; i++) {
+            if (fd[i] == nullptr) {
+                fd[i] = newFD;
+                return i;
+            }
+        }
+
+        // FD is full, we need to allocate
+        size_t newSize = p->fdSize * 2;
+        if (newSize == 0)
+            newSize = 1;
+
+        FileDescriptor** newProcFD = (FileDescriptor**)malloc(sizeof(FileDescriptor*) * newSize);
+        for (int i = 0; i < p->fdSize; i++)
+            newProcFD[i] = fd[i];
+
+        newProcFD[p->fdSize] = newFD;
+        int ret = p->fdSize;
+        p->fdSize = newSize;
+        p->fd = (void**)newProcFD;
+
+        return ret;
     }
 
-    void* ReadFile(File* file) {
-        void* filePtr = malloc(file->fileSize + 1);
-
-        uint64_t bytesRead = file->fileSystem->driver->ReadFile(file, 0, filePtr, file->fileSize);
-        if (bytesRead == 0) {
-            errorLogger.Log("Failed to read file!");
-            free(filePtr);
-            return nullptr;
+    size_t Read(int fd, void* buf, size_t count) {
+        ProcessManager::Process* p = ProcessManager::GetCurrentProcess();
+        if (fd >= p->fdSize) {
+            errorLogger.Log("Invalid file descriptor");
+            return 0;
         }
 
-        ((char*)filePtr)[file->fileSize] = 0;
+        FileDescriptor* f = ((FileDescriptor**)p->fd)[fd];
+        if (f->offset >= f->file->fileSize) {
+            memset(buf, 0, count);
+            return count;
+        }
 
-        return filePtr;
+        return f->file->fileSystem->driver->ReadFile(f->file, f->offset, buf, count);
+    }
+
+    int Close(int fd) {
+        ProcessManager::Process* p = ProcessManager::GetCurrentProcess();
+        if (fd >= p->fdSize) {
+            errorLogger.Log("Invalid file descriptor");
+            return 0;
+        }
+
+        FileDescriptor* f = ((FileDescriptor**)p->fd)[fd];
+        ((FileDescriptor**)p->fd)[fd] = nullptr;
+
+        f->file->lock--;
+        free(f);
+
+        return 0;
+    }
+
+    size_t Seek(int fd, size_t offset, int whence) {
+        ProcessManager::Process* p = ProcessManager::GetCurrentProcess();
+        if (fd >= p->fdSize) {
+            errorLogger.Log("Invalid file descriptor");
+            return 0;
+        }
+
+        FileDescriptor* f = ((FileDescriptor**)p->fd)[fd];
+
+        if (whence == SEEK_SET)
+            f->offset = offset;
+        else if (whence == SEEK_CUR)
+            f->offset += offset;
+        else if (whence == SEEK_END)
+            f->offset = f->file->fileSize + offset;
+
+        return f->offset;
     }
 }; // namespace VirtualFileSystem

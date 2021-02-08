@@ -2,6 +2,10 @@
 
 #include <dev.h>
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 namespace VirtualFileSystem {
     struct FileSystem;
     struct FileSystemDriver;
@@ -15,6 +19,8 @@ namespace VirtualFileSystem {
         Directory* directory;
 
         File* next;
+
+        int64_t lock;
 
         FileSystem* fileSystem;
         void* driverInfo;
@@ -60,8 +66,16 @@ namespace VirtualFileSystem {
         size_t (*ReadFile)(File*, size_t, void*, size_t);
     };
 
+    struct FileDescriptor {
+        File* file;
+        uint64_t offset;
+    };
+
     void RegisterDrive(DeviceManager::Device* drive, uint64_t driveSize);
 
-    File* GetFile(const char* filepath);
-    void* ReadFile(File* file);
+    int Open(const char* filename);
+    size_t Read(int fd, void* buf, size_t count);
+    int Close(int fd);
+
+    size_t Seek(int fd, size_t offset, int whence);
 } // namespace VirtualFileSystem

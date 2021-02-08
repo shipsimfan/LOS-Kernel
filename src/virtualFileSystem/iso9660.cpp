@@ -110,7 +110,9 @@ namespace VirtualFileSystem {
 
                     newFile->fileSize = entry->dirLength;
 
-                    newFile->driverInfo = (void*)entry->lba;
+                    newFile->driverInfo = (void*)((uint64_t)entry->lba);
+
+                    newFile->lock = 0;
                 }
 
                 entryI += entry->length;
@@ -192,19 +194,20 @@ namespace VirtualFileSystem {
         }
 
         uint64_t ReadFile(File* file, size_t offset, void* buffer, size_t bufferSize) {
-            void* bufToUse = buffer;
-            size_t bufToUseSize = bufferSize;
-            if (bufferSize % 2048 != 0) {
-                bufToUseSize = ((bufferSize / 2048) + 1) * 2048;
-                bufToUse = malloc(bufToUseSize);
+            size_t readStart = offset & ~(2047);
+            size_t readEnd = bufferSize + offset;
+            if (readEnd & 2047) {
+                readEnd = readEnd & ~(2047);
+                readEnd += 2048;
             }
+
+            size_t bufToUseSize = readEnd - readStart;
+            void* bufToUse = malloc(bufToUseSize);
 
             file->fileSystem->device->driver->ReadStream(file->fileSystem->device, (uint64_t)file->driverInfo, bufToUse, bufToUseSize);
 
-            if (buffer != bufToUse) {
-                memcpy(buffer, bufToUse, bufferSize);
-                free(bufToUse);
-            }
+            memcpy(buffer, (void*)((uint64_t)bufToUse + (offset & 2047)), bufferSize);
+            free(bufToUse);
 
             return bufferSize;
         }

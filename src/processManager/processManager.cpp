@@ -40,6 +40,8 @@ namespace ProcessManager {
         currentProcess->hashNext = nullptr;
         currentProcess->exitQueue = nullptr;
         currentProcess->child = nullptr;
+        currentProcess->fd = nullptr;
+        currentProcess->fdSize = 0;
 
         hash[0] = currentProcess;
 
@@ -51,24 +53,16 @@ namespace ProcessManager {
 
     uint64_t Execute(const char* filepath) {
         // Verify the file exists
-        VirtualFileSystem::File* file = VirtualFileSystem::GetFile(filepath);
-        if (file == nullptr) {
+        int file = VirtualFileSystem::Open(filepath);
+        if (file == -1) {
             errorLogger.Log("Unable to locate file %s", filepath);
             return 0;
         }
 
-        // Load the file
-        void* filePtr = VirtualFileSystem::ReadFile(file);
-        if (filePtr == nullptr) {
-            errorLogger.Log("Error while loading file %s", filepath);
-            return 0;
-        }
-
         // Verify ELF header
-        int status = ELF::VerifyElfExecHeader(filePtr);
+        int status = ELF::VerifyElfExecHeader(file);
         if (status) {
             errorLogger.Log("Invalid ELF header (%i)", status);
-            free(filePtr);
             return 0;
         }
 
@@ -76,7 +70,6 @@ namespace ProcessManager {
         Process* newProcess = (Process*)malloc(sizeof(Process));
         if (newProcess == nullptr) {
             errorLogger.Log("Unable to allocate new process!");
-            free(filePtr);
             return 0;
         }
 
@@ -84,14 +77,22 @@ namespace ProcessManager {
         memset(&newProcess->kernelStack, 0, KERNEL_STACK_SIZE);
 
         // Name the process
-        newProcess->name = (const char*)malloc(strlen(file->name) + 1);
+        uint64_t filepathLen = strlen(filepath);
+        size_t i;
+        for (i = filepathLen; filepath[i] != '/'; i--)
+            ;
+
+        i++;
+
+        newProcess->name = (const char*)malloc(filepathLen - i + 1);
         if (newProcess->name == nullptr) {
             errorLogger.Log("Unable to allocate name");
-            free(filePtr);
             return 0;
         }
 
-        strcpy((char*)newProcess->name, file->name);
+        strcpy((char*)newProcess->name, filepath + i);
+
+        debugLogger.Log("Test: %s", newProcess->name);
 
         // Get the process address space
         newProcess->cr3 = MemoryManager::Virtual::CreateNewPagingStructure();
@@ -105,6 +106,8 @@ namespace ProcessManager {
         newProcess->queueNext = nullptr;
         newProcess->exitQueue = nullptr;
         newProcess->child = nullptr;
+        newProcess->fd = nullptr;
+        newProcess->fdSize = 0;
 
         // Set kernel stack base
         newProcess->kernelStackBase = (uint64_t)(&newProcess->kernelStack);
@@ -116,8 +119,7 @@ namespace ProcessManager {
         MemoryManager::Virtual::SetPageStructure(newProcess->cr3);
 
         // Load the process into the address space
-        void* entry = ELF::LoadExecutableIntoUserspace(filePtr);
-        free(filePtr);
+        void* entry = ELF::LoadExecutableIntoUserspace(file);
 
         // Get the process PID
         newProcess->pid = nextPID;
@@ -158,6 +160,10 @@ namespace ProcessManager {
     }
 
     void Exit(uint64_t status) {
+        // Close all file descriptors
+        for (int i = 0; i < currentProcess->fdSize; i++)
+            VirtualFileSystem::Close(i);
+
         // Save old process
         Process* oldProcess = currentProcess;
 
@@ -264,6 +270,8 @@ namespace ProcessManager {
 
         *status = currentProcess->queueData;
     }
+
+    Process* GetCurrentProcess() { return currentProcess; }
 }; // namespace ProcessManager
 
 void Mutex::Lock() {

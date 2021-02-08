@@ -99,6 +99,6 @@ namespace ELF {
 
 #pragma pack(pop)
 
-    int VerifyElfExecHeader(void* header);
-    void* LoadExecutableIntoUserspace(void* file);
+    int VerifyElfExecHeader(int fd);
+    void* LoadExecutableIntoUserspace(int fd);
 } // namespace ELF

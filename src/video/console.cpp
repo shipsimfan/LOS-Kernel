@@ -53,7 +53,7 @@ namespace Console {
         uint64_t* bBuffer = (uint64_t*)backBuffer;
 
         for (uint64_t i = 0; i < framebufferSize / 8; i++)
-            backBuffer[i] = fBuffer[i];
+            bBuffer[i] = fBuffer[i];
 
         isDoubleBuffer = true;
     }

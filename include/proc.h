@@ -32,6 +32,9 @@ namespace ProcessManager {
 
         Process* exitQueue;
 
+        void** fd;
+        int fdSize;
+
         uint8_t kernelStack[KERNEL_STACK_SIZE];
     };
 
@@ -46,6 +49,8 @@ namespace ProcessManager {
     void Exit(uint64_t status);
 
     void WaitPID(uint64_t pid, uint64_t* status);
+
+    Process* GetCurrentProcess();
 } // namespace ProcessManager
 
 struct Mutex {
