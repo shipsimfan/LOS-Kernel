@@ -43,7 +43,7 @@ namespace MemoryManager {
                 // Using the first page of virtual memory to detect null pointer exceptions
                 // Meaning you can't use the first page of virtual memory. Hopefully you didn't need those 4 kilobytes
                 if (cpu.cr2 < PAGE_SIZE)
-                    errorLogger.Log("Null Pointer Exception at %#llx", stack.rip);
+                    errorLogger.Log("Null Pointer Exception at %#llx (Faulting Address: %#llx)", stack.rip, cpu.cr2);
                 else {
                     if (currentPML4 != kernelPML4 || cpu.cr2 >= KERNEL_VMA) {
                         physAddr_t physAddr = Physical::AllocNextFreePage();

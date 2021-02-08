@@ -218,9 +218,7 @@ namespace InterruptHandler {
             if (arg1 >= KERNEL_VMA)
                 break;
 
-            Console::DisplayString((const char*)arg1);
-
-            break;
+            return Console::DisplayString((const char*)arg1);
 
         case 2:
             if (arg1 >= KERNEL_VMA)

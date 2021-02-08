@@ -66,7 +66,7 @@ namespace DeviceManager { namespace PS2 {
             return false;
 
         uint64_t start = getCurrentTimeMillis();
-        while (inb(PS2_REG_STATUS) & 1) {
+        while (inb(PS2_REG_STATUS) & 2) {
             if (getCurrentTimeMillis() > start + PS2_TIMEOUT) {
                 errorLogger.Log("Timed out on PS/2 write");
                 return false;
@@ -82,12 +82,12 @@ namespace DeviceManager { namespace PS2 {
         if (!portExists[1])
             return false;
 
-        outb(PS2_REG_COMMAND, PS2_CMD_SELECT_SECOND_INPUT);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
+        outb(PS2_REG_COMMAND, PS2_CMD_SELECT_SECOND_INPUT);
 
         uint64_t start = getCurrentTimeMillis();
-        while (inb(PS2_REG_STATUS) & 1) {
+        while (inb(PS2_REG_STATUS) & 2) {
             if (getCurrentTimeMillis() > start + PS2_TIMEOUT) {
                 errorLogger.Log("Timed out on PS/2 write");
                 return false;
@@ -277,19 +277,21 @@ namespace DeviceManager { namespace PS2 {
         ports[1].deviceMutex.value = true;
 
         // Disable devices
+        while (inb(PS2_REG_STATUS) & 2)
+            ;
         outb(PS2_REG_COMMAND, PS2_CMD_DISABLE_FIRST_PORT);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
         outb(PS2_REG_COMMAND, PS2_CMD_DISABLE_SECOND_PORT);
-        while (inb(PS2_REG_STATUS) & 1)
-            ;
 
         // Flush output buffer
         inb(PS2_REG_DATA);
 
         // Set the configuration byte
+        while (inb(PS2_REG_STATUS) & 2)
+            ;
         outb(PS2_REG_COMMAND, PS2_CMD_READ_CONFIG_BYTE);
-        while (inb(PS2_REG_STATUS) & 1)
+        while ((inb(PS2_REG_STATUS) & 1) == 0)
             ;
         uint8_t config = inb(PS2_REG_DATA);
 
@@ -300,55 +302,61 @@ namespace DeviceManager { namespace PS2 {
         else
             hasTwoPorts = false;
 
+        while (inb(PS2_REG_STATUS) & 2)
+            ;
         outb(PS2_REG_COMMAND, PS2_CMD_WRITE_CONFIG_BYTE);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
         outb(PS2_REG_DATA, config);
-        while (inb(PS2_REG_STATUS) & 1)
-            ;
 
         // Perform self test
-        outb(PS2_REG_COMMAND, PS2_CMD_TEST);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
+        outb(PS2_REG_COMMAND, PS2_CMD_TEST);
 
+        while ((inb(PS2_REG_STATUS) & 1) == 0)
+            ;
         if (inb(PS2_REG_DATA) != 0x55) {
             errorLogger.Log("Error while testing PS/2 device!");
             return;
         }
 
         // Rewrite the configuration byte
+        while (inb(PS2_REG_STATUS) & 2)
+            ;
         outb(PS2_REG_COMMAND, PS2_CMD_WRITE_CONFIG_BYTE);
-        while (inb(PS2_REG_STATUS) & 1)
+
+        while (inb(PS2_REG_STATUS) & 2)
             ;
         outb(PS2_REG_DATA, config);
-        while (inb(PS2_REG_STATUS) & 1)
-            ;
 
         // Determine two channel
         if (hasTwoPorts) {
-            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_SECOND_PORT);
-            while (inb(PS2_REG_STATUS) & 1)
+            while (inb(PS2_REG_STATUS) & 2)
                 ;
+            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_SECOND_PORT);
 
+            while (inb(PS2_REG_STATUS) & 2)
+                ;
             outb(PS2_REG_COMMAND, PS2_CMD_READ_CONFIG_BYTE);
-            while (inb(PS2_REG_STATUS) & 1)
+
+            while ((inb(PS2_REG_STATUS) & 1) == 0)
                 ;
             config = inb(PS2_REG_DATA);
 
             if (config & 5)
                 hasTwoPorts = false;
             else {
-                outb(PS2_REG_COMMAND, PS2_CMD_DISABLE_SECOND_PORT);
-                while (inb(PS2_REG_STATUS) & 1)
+                while (inb(PS2_REG_STATUS) & 2)
                     ;
+                outb(PS2_REG_COMMAND, PS2_CMD_DISABLE_SECOND_PORT);
             }
         }
 
         // Test interfaces
-        outb(PS2_REG_COMMAND, PS2_CMD_TEST_FIRST_PORT);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
+        outb(PS2_REG_COMMAND, PS2_CMD_TEST_FIRST_PORT);
 
         uint8_t status = inb(PS2_REG_DATA);
         if (status)
@@ -357,9 +365,9 @@ namespace DeviceManager { namespace PS2 {
             portExists[0] = true;
 
         if (hasTwoPorts) {
-            outb(PS2_REG_COMMAND, PS2_CMD_TEST_SECOND_PORT);
-            while (inb(PS2_REG_STATUS) & 1)
+            while (inb(PS2_REG_STATUS) & 2)
                 ;
+            outb(PS2_REG_COMMAND, PS2_CMD_TEST_SECOND_PORT);
 
             status = inb(PS2_REG_DATA);
             if (status)
@@ -371,33 +379,33 @@ namespace DeviceManager { namespace PS2 {
         // Enable devices
         uint8_t intPins = 0;
         if (portExists[0]) {
-            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_FIRST_PORT);
-            while (inb(PS2_REG_STATUS) & 1)
+            while (inb(PS2_REG_STATUS) & 2)
                 ;
+            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_FIRST_PORT);
             intPins |= 1;
         }
 
         if (portExists[1]) {
-            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_SECOND_PORT);
-            while (inb(PS2_REG_STATUS) & 1)
+            while (inb(PS2_REG_STATUS) & 2)
                 ;
+            outb(PS2_REG_COMMAND, PS2_CMD_ENABLE_SECOND_PORT);
             intPins |= 2;
         }
 
-        outb(PS2_REG_COMMAND, PS2_CMD_READ_CONFIG_BYTE);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
+        outb(PS2_REG_COMMAND, PS2_CMD_READ_CONFIG_BYTE);
 
         config = inb(PS2_REG_DATA);
         config |= intPins;
 
+        while (inb(PS2_REG_STATUS) & 2)
+            ;
         outb(PS2_REG_COMMAND, PS2_CMD_WRITE_CONFIG_BYTE);
-        while (inb(PS2_REG_STATUS) & 1)
-            ;
 
-        outb(PS2_REG_DATA, config);
-        while (inb(PS2_REG_STATUS) & 1)
+        while (inb(PS2_REG_STATUS) & 2)
             ;
+        outb(PS2_REG_DATA, config);
 
         // Register devices
         ports[0].driverInfo = (void*)0;
