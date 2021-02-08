@@ -43,11 +43,15 @@ TaskEnter:
 
 ; Leave this now empty task and return back
 GLOBAL TaskExit
+EXTERN free
 TaskExit:
     ; Switch stack
     mov rbx, currentProcess
     mov rax, [rbx]
     mov rsp, [rax]
+
+    ; Free old process
+    call free
 
     ; Restore registers
     pop r15

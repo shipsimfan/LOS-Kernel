@@ -8,7 +8,7 @@
 
 namespace ProcessManager {
     extern "C" void TaskEnter(void* entry, Process* newProcess);
-    extern "C" void TaskExit();
+    extern "C" void TaskExit(Process* oldProcess);
     extern "C" void TaskSwitch();
 
     Process* hash[PROCESS_HASH_SIZE];
@@ -28,18 +28,18 @@ namespace ProcessManager {
         currentProcess->pid = 0;
         currentProcess->cr3 = MemoryManager::Virtual::GetSystemPageStructure();
 
-        // Set RSP
+        // Set kernel stack base
         currentProcess->kernelStackBase = (uint64_t)(&currentProcess->kernelStack);
         currentProcess->kernelStackBase += KERNEL_STACK_SIZE;
         if (currentProcess->kernelStackBase % 16 != 0)
             currentProcess->kernelStackBase -= currentProcess->kernelStackBase % 16;
-        currentProcess->rsp = currentProcess->kernelStackBase;
         currentProcessStackBase = currentProcess->kernelStackBase;
 
         currentProcess->queueNext = nullptr;
         currentProcess->hashPrev = nullptr;
         currentProcess->hashNext = nullptr;
         currentProcess->exitQueue = nullptr;
+        currentProcess->child = nullptr;
 
         hash[0] = currentProcess;
 
@@ -98,17 +98,19 @@ namespace ProcessManager {
 
         // Set process parent
         newProcess->parent = currentProcess;
+        newProcess->nextChild = currentProcess->child;
+        currentProcess->child = newProcess;
 
-        // Set queue next
+        // Set null pointers
         newProcess->queueNext = nullptr;
         newProcess->exitQueue = nullptr;
+        newProcess->child = nullptr;
 
-        // Set RSP
+        // Set kernel stack base
         newProcess->kernelStackBase = (uint64_t)(&newProcess->kernelStack);
         newProcess->kernelStackBase += KERNEL_STACK_SIZE;
         if (newProcess->kernelStackBase % 16 != 0)
             newProcess->kernelStackBase -= newProcess->kernelStackBase % 16;
-        newProcess->rsp = newProcess->kernelStackBase;
 
         // Change memory space
         MemoryManager::Virtual::SetPageStructure(newProcess->cr3);
@@ -174,12 +176,9 @@ namespace ProcessManager {
             p->queueNext = oldProcess->exitQueue;
         }
 
-        // Switch process
-        if (runningQueue == nullptr) {
-            errorLogger.Log("Nothing to switch to!");
-            while (1)
-                ;
-        }
+        // Wait for process to awaken
+        while (runningQueue == nullptr)
+            ;
 
         currentProcess = runningQueue;
         runningQueue = currentProcess->queueNext;
@@ -187,9 +186,23 @@ namespace ProcessManager {
         // Switch address space
         MemoryManager::Virtual::SetPageStructure(currentProcess->cr3);
 
-        // Exit children . . .
+        // Switch TSS
+        InterruptHandler::SetTSS(currentProcess->kernelStackBase);
 
-        // Remove process from hash map
+        // Set the stack base
+        currentProcessStackBase = currentProcess->kernelStackBase;
+
+        // Migrate children to parent
+        for (Process* c = oldProcess->child; c != nullptr; c = c->nextChild) {
+            c->parent = oldProcess->parent;
+            if (c->nextChild == nullptr)
+                c->nextChild = oldProcess->parent->child;
+        }
+
+        if (oldProcess->child != nullptr)
+            oldProcess->parent->child = oldProcess->child;
+
+        // Remove oldProcess from hash map
         if (oldProcess->hashPrev != nullptr)
             oldProcess->hashPrev->hashNext = oldProcess->hashNext;
         if (oldProcess->hashNext != nullptr)
@@ -205,16 +218,8 @@ namespace ProcessManager {
         // Free name
         free((void*)(oldProcess->name));
 
-        // Switch TSS
-        InterruptHandler::SetTSS(currentProcess->kernelStackBase);
-
-        // Set the stack base
-        currentProcessStackBase = currentProcess->kernelStackBase;
-
-        // Free old process
-
-        // Switch
-        TaskExit();
+        // Exit
+        TaskExit(oldProcess);
     }
 
     extern "C" void Schedule() {
