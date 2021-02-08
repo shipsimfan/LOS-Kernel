@@ -120,6 +120,7 @@ namespace ProcessManager {
 
         // Load the process into the address space
         void* entry = ELF::LoadExecutableIntoUserspace(file);
+        VirtualFileSystem::Close(file);
 
         // Get the process PID
         newProcess->pid = nextPID;
