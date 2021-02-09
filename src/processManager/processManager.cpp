@@ -39,13 +39,10 @@ namespace ProcessManager {
         currentProcess->hashPrev = nullptr;
         currentProcess->hashNext = nullptr;
         currentProcess->exitQueue = nullptr;
-        currentProcess->child = nullptr;
         currentProcess->fd = nullptr;
         currentProcess->fdSize = 0;
 
         hash[0] = currentProcess;
-
-        currentProcess->parent = nullptr;
 
         nextPID = 1;
         runningQueue = nullptr;
@@ -95,15 +92,9 @@ namespace ProcessManager {
         // Get the process address space
         newProcess->cr3 = MemoryManager::Virtual::CreateNewPagingStructure();
 
-        // Set process parent
-        newProcess->parent = currentProcess;
-        newProcess->nextChild = currentProcess->child;
-        currentProcess->child = newProcess;
-
         // Set null pointers
         newProcess->queueNext = nullptr;
         newProcess->exitQueue = nullptr;
-        newProcess->child = nullptr;
         newProcess->fd = nullptr;
         newProcess->fdSize = 0;
 
@@ -197,16 +188,6 @@ namespace ProcessManager {
 
         // Set the stack base
         currentProcessStackBase = currentProcess->kernelStackBase;
-
-        // Migrate children to parent
-        for (Process* c = oldProcess->child; c != nullptr; c = c->nextChild) {
-            c->parent = oldProcess->parent;
-            if (c->nextChild == nullptr)
-                c->nextChild = oldProcess->parent->child;
-        }
-
-        if (oldProcess->child != nullptr)
-            oldProcess->parent->child = oldProcess->child;
 
         // Remove oldProcess from hash map
         if (oldProcess->hashPrev != nullptr)

@@ -20,11 +20,6 @@ namespace ProcessManager {
         const char* name;
         uint64_t pid;
 
-        Process* parent;
-        Process* child;
-
-        Process* nextChild;
-
         Process* hashNext;
         Process* hashPrev;
 
