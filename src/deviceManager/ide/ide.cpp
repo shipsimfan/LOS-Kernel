@@ -93,7 +93,7 @@ namespace DeviceManager { namespace IDE {
 
     uint8_t irqInvoked = 0;
 
-    extern "C" void IRQ14Handler() { debugLogger.Log("IRQ14"); }
+    extern "C" void IRQ14Handler() { warningLogger.Log("IRQ14"); }
 
     extern "C" void IRQ15Handler() { irqInvoked = 1; }
 

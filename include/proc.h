@@ -12,6 +12,7 @@ namespace ProcessManager {
 
     struct Process {
         uint64_t rsp;
+        uint64_t kernelRSP;
         uint64_t kernelStackBase;
 
         uint64_t cr3;

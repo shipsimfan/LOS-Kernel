@@ -58,6 +58,7 @@ namespace MemoryManager {
             } else {
                 errorLogger.Log("Page Protection fault!");
                 errorLogger.Log("Fault address: %#llx", cpu.cr2);
+                errorLogger.Log("Fault instruction: %#llx", stack.rip);
                 errorLogger.Log("Error Code: %#x", stack.errorCode);
             }
 

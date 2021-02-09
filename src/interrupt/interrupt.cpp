@@ -201,7 +201,7 @@ namespace InterruptHandler {
         if (irqHandlers[irqNumber] != nullptr)
             irqHandlers[irqNumber]();
         else
-            debugLogger.Log("IRQ Number: %i", irqNumber);
+            warningLogger.Log("IRQ Number: %i", irqNumber);
 
         EndIRQ(irqNumber);
     }
@@ -239,8 +239,11 @@ namespace InterruptHandler {
             ProcessManager::WaitPID(arg1, (uint64_t*)arg2);
             break;
 
+        case 5:
+            return printf("%#llX", arg1);
+
         default:
-            debugLogger.Log("System call number: %#llx", num);
+            warningLogger.Log("System call number: %#llx", num);
         }
 
         return 0;

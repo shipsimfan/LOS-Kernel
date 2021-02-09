@@ -25,6 +25,7 @@ TaskEnter:
     ; Save rsp
     mov rax, currentProcess
     mov rbx, [rax]
+    add rbx, 8
     mov [rbx], rsp
 
     ; Switch process
@@ -46,9 +47,10 @@ GLOBAL TaskExit
 EXTERN free
 TaskExit:
     ; Switch stack
-    mov rbx, currentProcess
-    mov rax, [rbx]
-    mov rsp, [rax]
+    mov rax, currentProcess
+    mov rbx, [rax]
+    add rbx, 8
+    mov rsp, [rbx]
 
     ; Free old process
     call free
@@ -98,6 +100,7 @@ TaskSwitch:
     ; Save rsp
     mov rax, currentProcess
     mov rbx, [rax]
+    add rbx, 8
     mov [rbx], rsp
 
     ; SCHEDULE
@@ -105,9 +108,10 @@ TaskSwitch:
 
     ; ENTER NEXT TASK
     ; Switch stack
-    mov rbx, currentProcess
-    mov rax, [rbx]
-    mov rsp, [rax]
+    mov rax, currentProcess
+    mov rbx, [rax]
+    add rbx, 8
+    mov rsp, [rbx]
 
     ; Restore registers
     pop r15

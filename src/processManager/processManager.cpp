@@ -92,8 +92,6 @@ namespace ProcessManager {
 
         strcpy((char*)newProcess->name, filepath + i);
 
-        debugLogger.Log("Test: %s", newProcess->name);
-
         // Get the process address space
         newProcess->cr3 = MemoryManager::Virtual::CreateNewPagingStructure();
 
@@ -124,6 +122,7 @@ namespace ProcessManager {
 
         // Get the process PID
         newProcess->pid = nextPID;
+        uint64_t pid = nextPID;
         nextPID++;
 
         // Insert process into hash map
@@ -157,7 +156,7 @@ namespace ProcessManager {
         TaskEnter(entry, newProcess);
 
         // Return the PID
-        return newProcess->pid;
+        return pid;
     }
 
     void Exit(uint64_t status) {
@@ -248,6 +247,7 @@ namespace ProcessManager {
         // Verify pid
         uint64_t hashIndex = pid % PROCESS_HASH_SIZE;
         Process* p;
+
         for (p = hash[hashIndex]; p != nullptr; p = p->hashNext) {
             if (p->pid == pid)
                 break;

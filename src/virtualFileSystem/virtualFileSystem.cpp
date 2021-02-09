@@ -228,10 +228,12 @@ namespace VirtualFileSystem {
         }
 
         FileDescriptor* f = ((FileDescriptor**)p->fd)[fd];
-        ((FileDescriptor**)p->fd)[fd] = nullptr;
 
-        f->file->lock--;
-        free(f);
+        if (((FileDescriptor**)p->fd)[fd] != nullptr) {
+            f->file->lock--;
+            free(f);
+            ((FileDescriptor**)p->fd)[fd] = nullptr;
+        }
 
         return 0;
     }
