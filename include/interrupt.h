@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#define PREEMPT_TIMER_INTERRUPT 0xFE
+
 namespace InterruptHandler {
 #pragma pack(push)
 #pragma pack(1)
@@ -89,6 +91,7 @@ namespace InterruptHandler {
 
     void Init();
     bool InitAPIC(void* madt);
+    void InitPreemptTimer(void (*handler)());
 
     void SetExceptionHandler(uint8_t exception, bool (*exceptionHandler)(CPUState, StackState));
     void SetInterruptHandler(uint8_t interrupt, void (*interruptHandler)());

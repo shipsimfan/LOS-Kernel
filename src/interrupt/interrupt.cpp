@@ -3,6 +3,7 @@
 #include <console.h>
 #include <dev.h>
 #include <kernel/keyboard.h>
+#include <kernel/time.h>
 #include <logger.h>
 #include <mem/defs.h>
 #include <mem/virtual.h>
@@ -479,6 +480,7 @@ namespace InterruptHandler {
         interrupts[0xFF] = InterruptType::SPURIOUS;
         InstallInterruptHandler(0xFF, (uint64_t)SpuriousISRHandler);
         localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = 0x1FF;
+        localAPIC[LAPIC_TASK_PRIORITY] = 0;
 
         // Verify 8259 PICs
         if ((madt->flags & 1) == 0) {
@@ -556,6 +558,33 @@ namespace InterruptHandler {
             ClearMask(i);
 
         return true;
+    }
+
+    void InitPreemptTimer(void (*handler)()) {
+        // Set the interrupt
+        localAPIC[LAPIC_TIMER_LVT] = APIC_DISABLE;
+        InstallInterruptHandler(PREEMPT_TIMER_INTERRUPT, (uint64_t)handler);
+
+        // Set the divider
+        localAPIC[LAPIC_TIMER_DIV] = 0x3;
+
+        // Wait till the start of the millisecond
+        uint64_t start = getCurrentTimeMillis() + 1;
+        while (getCurrentTimeMillis() < start)
+            ;
+
+        localAPIC[LAPIC_TIMER_LVT] = PREEMPT_TIMER_INTERRUPT;
+        localAPIC[LAPIC_TIMER_INITCNT] = 0xFFFFFFFF;
+
+        while (getCurrentTimeMillis() < start + 10)
+            ;
+
+        localAPIC[LAPIC_TIMER_LVT] = APIC_DISABLE;
+
+        uint32_t ticksIn10ms = 0xFFFFFFFF - localAPIC[LAPIC_TIMER_CURCNT];
+
+        localAPIC[LAPIC_TIMER_LVT] = PREEMPT_TIMER_INTERRUPT | 0x20000;
+        localAPIC[LAPIC_TIMER_INITCNT] = ticksIn10ms;
     }
 
     void SetExceptionHandler(uint8_t exception, bool (*exceptionHandler)(CPUState, StackState)) {

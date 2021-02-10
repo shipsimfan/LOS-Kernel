@@ -7,6 +7,8 @@
 #include <string.h>
 
 namespace ProcessManager {
+    extern "C" void PreemptHandler();
+
     extern "C" void TaskEnter(void* entry, Process* newProcess);
     extern "C" void TaskExit(Process* oldProcess);
     extern "C" void TaskSwitch();
@@ -46,6 +48,16 @@ namespace ProcessManager {
 
         nextPID = 1;
         runningQueue = nullptr;
+    }
+
+    uint64_t t;
+    void InitPreempt() {
+        t = 0;
+        InterruptHandler::InitPreemptTimer(PreemptHandler);
+    }
+
+    extern "C" void Preempt() {
+        // TODO: Preempt
     }
 
     uint64_t Execute(const char* filepath) {

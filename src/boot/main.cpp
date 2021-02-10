@@ -1,6 +1,7 @@
 #include <console.h>
 #include <dev.h>
 #include <interrupt.h>
+#include <kernel/keyboard.h>
 #include <kernel/time.h>
 #include <logger.h>
 #include <mem.h>
@@ -46,10 +47,19 @@ extern "C" void kmain(MemoryMap* mmap, Console::GraphicsInfo* gmode, void* rdsp)
             ;
     }
 
+    ProcessManager::InitPreempt();
+
     uint64_t pid = ProcessManager::Execute(":0/LOS/SHELL.APP");
 
     uint64_t shellStatus;
     ProcessManager::WaitPID(pid, &shellStatus);
+
+    if (shellStatus != 0) {
+        errorLogger.Log("Shell exited with non-zero status: %#llX", shellStatus);
+        errorLogger.Log("Press any key to shutdown . . .");
+        char buffer;
+        ReadKey(&buffer, 1);
+    }
 
     Shutdown();
 

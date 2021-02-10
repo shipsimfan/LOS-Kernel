@@ -40,6 +40,7 @@ namespace ProcessManager {
     extern "C" uint64_t currentProcessStackBase;
 
     void Init();
+    void InitPreempt();
 
     uint64_t Execute(const char* filepath);
     void Exit(uint64_t status);

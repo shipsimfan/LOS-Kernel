@@ -27,5 +27,7 @@ int Logger::Log(const char* format, ...) {
 
     ret += printf("\n");
 
+    Console::SetForegroundColor(0xFFFFFFFF);
+
     return ret;
 }
