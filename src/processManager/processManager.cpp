@@ -19,7 +19,8 @@ namespace ProcessManager {
     Process* currentProcess;
     uint64_t currentProcessStackBase;
 
-    Process* runningQueue;
+    Process* runningHead;
+    Process* runningTail;
 
     void Init() {
         for (int i = 0; i < PROCESS_HASH_SIZE; i++)
@@ -47,7 +48,8 @@ namespace ProcessManager {
         hash[0] = currentProcess;
 
         nextPID = 1;
-        runningQueue = nullptr;
+        runningHead = nullptr;
+        runningTail = nullptr;
     }
 
     uint64_t t;
@@ -57,7 +59,12 @@ namespace ProcessManager {
     }
 
     extern "C" void Preempt() {
-        // TODO: Preempt
+        if (runningHead == nullptr)
+            return;
+
+        runningTail->queueNext = currentProcess;
+
+        TaskSwitch();
     }
 
     uint64_t Execute(const char* filepath) {
@@ -137,16 +144,13 @@ namespace ProcessManager {
         hash[processIndex] = newProcess;
 
         // Put the current process into the running queue
-        if (runningQueue == nullptr)
-            runningQueue = currentProcess;
-        else {
-            Process* p;
-            for (p = runningQueue; p->queueNext != nullptr; p = p->queueNext)
-                ;
-
-            p->queueNext = currentProcess;
+        if (runningHead == nullptr) {
+            runningHead = currentProcess;
+            runningTail = currentProcess;
+        } else {
+            runningTail->queueNext = currentProcess;
+            runningTail = currentProcess;
         }
-
         currentProcess->queueNext = nullptr;
 
         // Set the TSS
@@ -175,22 +179,29 @@ namespace ProcessManager {
             p->queueData = status;
 
         // Awaken exit queue
-        if (runningQueue == nullptr)
-            runningQueue = oldProcess->exitQueue;
-        else {
-            Process* p;
-            for (p = runningQueue; p->queueNext != nullptr; p = p->queueNext)
-                ;
+        if (oldProcess->exitQueue != nullptr) {
+            if (runningHead == nullptr) {
+                runningHead = oldProcess->exitQueue;
+                runningTail = runningHead;
+            } else {
+                runningTail->queueNext = oldProcess->exitQueue;
+                Process* p = oldProcess->exitQueue;
+                while (p->queueNext != nullptr)
+                    p = p->queueNext;
 
-            p->queueNext = oldProcess->exitQueue;
+                runningTail = p;
+            }
         }
 
         // Wait for process to awaken
-        while (runningQueue == nullptr)
+        while (runningHead == nullptr)
             ;
 
-        currentProcess = runningQueue;
-        runningQueue = currentProcess->queueNext;
+        currentProcess = runningHead;
+        if (runningTail == currentProcess)
+            runningTail = nullptr;
+
+        runningHead = currentProcess->queueNext;
 
         // Switch address space
         MemoryManager::Virtual::SetPageStructure(currentProcess->cr3);
@@ -222,14 +233,12 @@ namespace ProcessManager {
     }
 
     extern "C" void Schedule() {
-        if (runningQueue == nullptr) {
-            errorLogger.Log("Nothing to go to!");
-            while (1)
-                ;
-        }
+        // Wait for a process
+        while (runningHead == nullptr)
+            ;
 
-        currentProcess = runningQueue;
-        runningQueue = runningQueue->queueNext;
+        currentProcess = runningHead;
+        runningHead = runningHead->queueNext;
 
         MemoryManager::Virtual::SetPageStructure(currentProcess->cr3);
         InterruptHandler::SetTSS(currentProcess->kernelStackBase);
@@ -292,14 +301,12 @@ void Mutex::Unlock() {
     if (queue == nullptr)
         value = true;
     else {
-        if (ProcessManager::runningQueue == nullptr)
-            ProcessManager::runningQueue = queue;
-        else {
-            ProcessManager::Process* p;
-            for (p = ProcessManager::runningQueue; p->queueNext != nullptr; p = p->queueNext)
-                ;
-
-            p->queueNext = queue;
+        if (ProcessManager::runningHead == nullptr) {
+            ProcessManager::runningHead = queue;
+            ProcessManager::runningTail = queue;
+        } else {
+            ProcessManager::runningTail->queueNext = queue;
+            ProcessManager::runningTail = queue;
         }
 
         queue = queue->queueNext;
