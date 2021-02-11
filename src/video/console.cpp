@@ -1,6 +1,7 @@
 #include <console.h>
 
 #include <font.h>
+#include <proc.h>
 #include <stdlib.h>
 
 namespace Console {
@@ -16,6 +17,8 @@ namespace Console {
 
     bool isDoubleBuffer;
     uint32_t* backBuffer;
+
+    Mutex videoMutex;
 
     void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel) {
         if (x >= width || y >= height)
@@ -40,6 +43,9 @@ namespace Console {
 
         consoleWidth = width / 8;
         consoleHeight = height / 16;
+
+        videoMutex.queue = nullptr;
+        videoMutex.value = true;
 
         ClearScreen();
     }
@@ -86,6 +92,7 @@ namespace Console {
     }
 
     bool DisplayCharacter(char character) {
+        videoMutex.Lock();
         bool ret = false;
 
         switch (character) {
@@ -116,6 +123,7 @@ namespace Console {
             }
         }
 
+        videoMutex.Unlock();
         return ret;
     }
 

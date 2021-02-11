@@ -240,6 +240,8 @@ namespace ProcessManager {
         currentProcess = runningHead;
         runningHead = runningHead->queueNext;
 
+        currentProcess->queueNext = nullptr;
+
         MemoryManager::Virtual::SetPageStructure(currentProcess->cr3);
         InterruptHandler::SetTSS(currentProcess->kernelStackBase);
         currentProcessStackBase = currentProcess->kernelStackBase;
