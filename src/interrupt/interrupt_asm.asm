@@ -1,129 +1,38 @@
-BITS 64
-
-EXTERN currentProcess
-EXTERN currentProcessStackBase
-
-GLOBAL SystemCall
-EXTERN SystemCallHandler
-SystemCall:
-    ; RCX contains RIP, R11 contains RFLAGS
-    mov rbx, currentProcess
-    mov rax, [rbx]
-    mov [rax], rsp
-
-    mov rbx, currentProcessStackBase
-    mov rsp, [rbx]
-
-    push rcx
-    push r11
-
-    call SystemCallHandler
-
-    pop r11
-    pop rcx
-
-    mov rdi, currentProcess
-    mov rsi, [rdi]
-    mov rsp, [rsi]
-
-    o64 sysret
-
-idtr:
-    .limit: dw  256 * 16 - 1
-    .pointer: dq 0
-
-gdtr:
-    .limit: dw 7 * 8 - 1
-    .pointer: dq 0
-
 GLOBAL InstallGDT
-EXTERN gdt
 InstallGDT:
-    push rax
-    push rbx
-    mov rbx, gdtr.pointer
-    mov rax, gdt
-    mov [rbx], rax
+    lgdt [rdi]
 
-    mov rbx, gdtr
-    lgdt [rbx]
+    mov ds, si
+    mov es, si
+    mov fs, si
+    mov gs, si
+    mov ss, si
 
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-
-    mov ax, 0x28
-    ltr ax
-
-    pop rbx
-    pop rax
+    ltr dx
 
     ret
 
 GLOBAL InstallIDT
-EXTERN idt
 InstallIDT:
-    push rax
-    push rbx
-    mov rbx, idtr.pointer
-    mov rax, idt
-    mov [rbx], rax
-
-    mov rbx, idtr
-    lidt [rbx]
-
-    pop rbx
-    pop rax
+    lidt [rdi]
 
     ret
 
-GLOBAL CLIFunc
-CLIFunc:
-    cli
-    ret
-
-GLOBAL STIFunc
-STIFunc:
-    sti
-    ret
-
-GLOBAL SpuriousISRHandler
-SpuriousISRHandler:
+GLOBAL SpuriousIRQHandler
+SpuriousIRQHandler:
     iretq
 
-GLOBAL EnableAPIC
-EnableAPIC:
-    push rdx
-    push rcx
-    push rax
-
-    mov ecx, 0x1B
-    rdmsr
-
-    xor edx, edx
-    or eax, 1
-    wrmsr
-
-    pop rax
-    pop rcx
-    pop rdx
-
-    ret
-
 %macro no_error_code_interrupt_handler 1
-GLOBAL InterruptHandler%1
-InterruptHandler%1:
+GLOBAL ExceptionHandler%1
+ExceptionHandler%1:
     push QWORD 0
     push QWORD %1
     jmp common_interrupt_handler
 %endmacro
 
 %macro error_code_interrupt_handler 1
-GLOBAL InterruptHandler%1
-InterruptHandler%1:
+GLOBAL ExceptionHandler%1
+ExceptionHandler%1:
     push QWORD %1
     jmp common_interrupt_handler
 %endmacro
@@ -173,7 +82,7 @@ IRQHandler%1:
 
 EXTERN CommonIRQHandler
 
-EXTERN ExceptionHandler
+EXTERN CommonExceptionHandler
 common_interrupt_handler:
     push rax
     push rbx
@@ -192,12 +101,8 @@ common_interrupt_handler:
     push r14
     push r15
 
-    mov rax, cr2
-    push rax
+    call CommonExceptionHandler
 
-    call ExceptionHandler
-
-    pop rax ;cr2
     pop r15
     pop r14
     pop r13

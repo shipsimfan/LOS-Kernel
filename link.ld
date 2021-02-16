@@ -6,8 +6,13 @@ SECTIONS {
     
     . = __KERNEL_LMA;
 
-    .low_text : {
-        *(.low_text)
+    .text.low : {
+        *(.text.low)
+    }
+
+    . = ALIGN (4096);
+    .data.low : {
+        *(.data.low)
     }
 
     . += __KERNEL_VMA;

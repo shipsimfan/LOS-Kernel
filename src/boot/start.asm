@@ -1,144 +1,122 @@
-BITS 64
-SECTION .low_text
+;  LOS Kernel
+;  start.asm
+;
+;  The entry point from the bootloader
 
-kernel_vma: equ 0xFFFF800000000000
+SECTION .data.low
 
 ;======================================
-; GDT
+; PAGE TABLES
 ;======================================
-TSS:
-    dd 0 ; Reserved
-    dq 0xFFFFFFFFFFFFFFF0 ; RSP0
-    dq 0 ; RSP1
-    dq 0 ; RSP2
-    dq 0 ; Reserved
-    dq 0 ; IST1
-    dq 0 ; IST2
-    dq 0 ; IST3
-    dq 0 ; IST4
-    dq 0 ; IST5
-    dq 0 ; IST6
-    dq 0 ; IST7
-    dq 0 ; Reserved
-    dd 0 ; IOPB offset
-
-TSSSize: equ $ - TSS
-
-GDT64:
-    .null:  equ $ - GDT64
-        dq 0
-    .code0:  equ $ - GDT64
-        dw 0xFFFF       ; Limit 0:15
-        dw 0x0000       ; Base 0:15
-        db 0x00         ; Base 16:23
-        db 0b10011010   ; Access: Present(1) - Ring 0 (00) - Code or Data(1) - Executable(1) - Conforming(0) - Read/Write(1) - Access(0)
-        db 0b10101111   ; Flags and Limit 16:19
-        db 0x00         ; Base 24:31
-    .data0:  equ $ - GDT64
-        dw 0xFFFF       ; Limit 0:15
-        dw 0x0000       ; Base 0:15
-        db 0x00         ; Base 16:23
-        db 0b10010010   ; Access: Present(1) - Ring 0 (00) - Code or Data(1) - Executable(0) - Conforming(0) - Read/Write(1) - Access(0)
-        db 0b11001111   ; Flags and Limit 16:19
-        db 0x00         ; Base 24:31
-    .data3:  equ $ - GDT64
-        dw 0xFFFF       ; Limit 0:15
-        dw 0x0000       ; Base 0:15
-        db 0x00         ; Base 16:23
-        db 0b11110010   ; Access: Present(1) - Ring 3 (11) - Code or Data(1) - Executable(0) - Conforming(0) - Read/Write(1) - Access(0)
-        db 0b11001111   ; Flags and Limit 16:19
-        db 0x00         ; Base 24:31
-    .code3:  equ $ - GDT64
-        dw 0xFFFF       ; Limit 0:15
-        dw 0x0000       ; Base 0:15
-        db 0x00         ; Base 16:23
-        db 0b11111010   ; Access: Present(1) - Ring 3 (11) - Code or Data(1) - Executable(1) - Conforming(0) - Read/Write(1) - Access(0)
-        db 0b10101111   ; Flags and Limit 16:19
-        db 0x00         ; Base 24:31
-    .tss:   equ $ - GDT64
-        dw 104                      ; Limit 0:15
-        dw 0                        ; Base 0:15
-        db 0                        ; Base 16:23
-        db 0b11101001               ; Present(1) - Ring 3 (11) - 0 - Type (1001)
-        db 0b10000000               ; Granularity(1) - 00 - Availability (0) - Limit 16:19
-        db 0   ; Base 24:31
-        dd 0 ; Base 63:32
-        db 0x00                     ; Reserved
-        db 0x00                     ; 0
-        dw 0x0000                   ; Reserved
-    .pointer:
-        dw $ - GDT64 - 1
-        dq GDT64 + kernel_vma
-
-mmap: dq 0
-gmode: dq 0
-rdsp: dq 0
-
 ALIGN 4096
 pml4: times 512 dq 0
+
+SECTION .bss
+
+;======================================
+; STACK
+;======================================
+stackBottom: resb 32768
+stackTop:
+
+GLOBAL gopInfo
+gopInfo: resq 1
+
+GLOBAL mmap
+mmap: resq 1
+
+GLOBAL rdsp
+rdsp: resq 1
+
+SECTION .text.low
 
 ;======================================
 ; BOOT ENTRY POINT
 ;======================================
 GLOBAL _start
+
 EXTERN kmain
-EXTERN SystemCallResponse
+
+EXTERN InitConsole
+EXTERN InitExceptions
+EXTERN InitPhysicalMemory
+EXTERN InitVirtualMemory
+EXTERN InitHeap
+
 _start:
+    ; Disable interrupts
     cli
 
-    mov [mmap], rdi
-    mov [gmode], rsi
-    mov [rdsp], rdx
-
+    ; Copy page structures from UEFI
     mov rbx, cr3
-    mov rsi, pml4
+    mov r8, pml4
     mov rcx, 256
 
-    .copyLoop1:
+    .copyLow:
         mov rax, [rbx]
-        mov [rsi], rax
+        mov [r8], rax
         add rbx, 8
-        add rsi, 8
-        loop .copyLoop1
+        add r8, 8
+        loop .copyLow
 
+    ; Copy page structures into higher half
     mov rbx, cr3
     mov rcx, 256
     
-    .copyLoop2:
+    .copyHigh:
         mov rax, [rbx]
-        mov [rsi], rax
+        mov [r8], rax
         add rbx, 8
-        add rsi, 8
-        loop .copyLoop2
+        add r8, 8
+        loop .copyHigh
 
+    ; Set page structures
     mov rax, pml4
     mov cr3, rax
-    
-    mov ecx, 0xC0000080
-    rdmsr
-    or eax, 1
-    wrmsr
 
-    xor eax, eax
-    mov edx, (0x10 << 16) | 0x08
-    mov ecx, 0xC0000081
-    wrmsr
-    
-    mov rsp, stack_end
+    mov rax, higherHalf
+    jmp rax
 
-    mov rax, kmain
-    mov rdi, [mmap]
-    mov rsi, [gmode]
-    mov rdx, [rdsp]
+SECTION .text
+
+higherHalf:
+    ; Setup the stack    
+    mov rsp, stackTop
+
+    ; Move arguments to higher half
+    mov rax, 0xFFFF800000000000
+    add rdi, rax
+    add rsi, rax
+    add rdx, rax
+
+    ; Save arguments
+    mov rbx, mmap
+    mov [rbx], rdi
+
+    mov rbx, gopInfo
+    mov [rbx], rsi
+
+    mov rbx, rdsp
+    mov [rbx], rdx
+
+    ; Initialize the console
+    mov rax, InitConsole
     call rax
 
-    .hang:
-        cli
-        hlt
-        jmp .hang
+    ; Initialize the exception handler
+    mov rax, InitExceptions
+    call rax
 
-SECTION .bss
+    ; Initalize memory
+    mov rax, InitPhysicalMemory
+    call rax
 
-stack_begin:
-resb 32768
-stack_end:
+    mov rax, InitVirtualMemory
+    call rax
+
+    mov rax, InitHeap
+    call rax
+
+    ; Call kernel main
+    mov rax, kmain
+    call rax

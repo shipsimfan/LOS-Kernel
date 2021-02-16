@@ -3,34 +3,16 @@
 #include <stdint.h>
 
 namespace Console {
-#pragma pack(push)
-#pragma pack(1)
+    int Print(const char* format, ...);
+    int Println(const char* format, ...);
 
-    struct GraphicsInfo {
-        uint32_t horizontalResolution;
-        uint32_t verticalResolution;
-        uint32_t pixelFormat;
-        uint32_t redMask;
-        uint32_t greenMask;
-        uint32_t blueMask;
-        uint32_t reserved;
-        uint32_t pixelsPerScanline;
-        uint64_t frameBufferBase;
-        uint64_t frameBufferSize;
-    };
+    void SetForegroundColor(uint8_t red, uint8_t green, uint8_t blue);
+    void SetBackgroundColor(uint8_t red, uint8_t green, uint8_t blue);
 
-#pragma pack(pop)
+    void SetCursorPos(uint32_t x, uint32_t y);
+    uint32_t GetCursorX();
+    uint32_t GetCursorY();
 
-    void Init(GraphicsInfo* gmode);
-    void InitDoubleBuffering();
-
-    bool DisplayCharacter(char character);
-    int DisplayString(const char* string);
-
-    void SetForegroundColor(uint32_t color);
-    void SetBackgroundColor(uint32_t color);
+    void ScrollUp();
     void ClearScreen();
-
-    uint64_t GetFramebuffer();
-    uint64_t GetFramebufferSize();
 } // namespace Console

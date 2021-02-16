@@ -20,7 +20,7 @@ C_OBJ_FILES := $(C_SRC_FILES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # PROGRAMS
 CPP := x86_64-elf-g++
-CPP_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -c -Wall -I./include -I./stdinc -D DEBUG -g
+CPP_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -c -Wall -I./include  -D DEBUG -g
 
 ASM := nasm
 ASM_FLAGS := -f elf64 -g -F dwarf
@@ -42,7 +42,7 @@ clean:
 # COMPILATION RULES
 .SECONDEXPANSION:
 
-$(KERNEL): $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(C_OBJ_FILES)
+$(KERNEL): $(C_OBJ_FILES) $(CPP_OBJ_FILES) $(ASM_OBJ_FILES)
 	$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
@@ -53,6 +53,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $$(@D)/.
 	$(CC) $(CC_FLAGS) -o $@ $^
+
+$(OBJ_DIR)/%.o: $(CRT_DIR)/%.asm
+	$(ASM) $(ASM_FLAGS) -o $@ $^
 
 # DIRECTORY RULES
 $(OBJ_DIR)/.:
