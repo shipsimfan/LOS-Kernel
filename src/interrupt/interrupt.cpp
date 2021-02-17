@@ -2,6 +2,7 @@
 #include <interrupt/irq.h>
 #include <interrupt/stack.h>
 
+#include <mutex.h>
 #include <panic.h>
 #include <string.h>
 
@@ -9,8 +10,11 @@
 
 namespace Interrupt {
     ExceptionHandler exceptionHandlers[NUM_EXCEPTIONS];
-    IRQHandler irqHandler[NUM_IRQ];
-    void* irqContext[NUM_IRQ];
+    Mutex exceptionHandlersMutex;
+
+    IRQHandler irqHandlers[NUM_IRQ];
+    void* irqContexts[NUM_IRQ];
+    Mutex irqHandlersMutex;
 
     IDTDescr idt[256];
     CPUPointer idtr;
@@ -44,6 +48,14 @@ namespace Interrupt {
         // Clear the exception handlers
         for (int i = 0; i < NUM_EXCEPTIONS; i++)
             exceptionHandlers[i] = nullptr;
+
+        exceptionHandlersMutex.Unlock();
+
+        // Clear the irq handlers
+        for (int i = 0; i < NUM_IRQ; i++)
+            irqHandlers[i] = nullptr;
+
+        irqHandlersMutex.Unlock();
 
         // Clear the gdt, idt, and tss
         memset(idt, 0, sizeof(idt));
@@ -157,14 +169,22 @@ namespace Interrupt {
     }
 
     bool InstallExceptionHandler(ExceptionType exception, ExceptionHandler handler) {
-        if (exceptionHandlers[exception] != nullptr)
+        exceptionHandlersMutex.Lock();
+        if (exceptionHandlers[exception] != nullptr) {
+            exceptionHandlersMutex.Unlock();
             return false;
+        }
 
         exceptionHandlers[exception] = handler;
+        exceptionHandlersMutex.Unlock();
         return true;
     }
 
-    void RemoveExceptionHandler(ExceptionType exception) { exceptionHandlers[exception] = nullptr; }
+    void RemoveExceptionHandler(ExceptionType exception) {
+        exceptionHandlersMutex.Lock();
+        exceptionHandlers[exception] = nullptr;
+        exceptionHandlersMutex.Unlock();
+    }
 
     bool InstallIRQHandler(uint8_t irq, IRQHandler handler, void* context = nullptr) { return false; }
 
