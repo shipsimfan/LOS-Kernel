@@ -31,6 +31,9 @@ mmap: resq 1
 GLOBAL rdsp
 rdsp: resq 1
 
+ctorsAddr: resq 1
+ctorsSize: resq 1
+
 SECTION .text.low
 
 ;======================================
@@ -50,6 +53,10 @@ EXTERN InitHeap
 _start:
     ; Disable interrupts
     cli
+
+    ; Save .ctors
+    mov r14, rcx
+    mov r15, r8
 
     ; Copy page structures from UEFI
     mov rbx, cr3
@@ -103,6 +110,12 @@ higherHalf:
     mov rbx, rdsp
     mov [rbx], rdx
 
+    mov rbx, ctorsAddr
+    mov [rbx], r14
+    
+    mov rbx, ctorsSize
+    mov [rbx], r15
+
     ; Initialize the console
     mov rax, InitConsole
     call rax
@@ -124,6 +137,35 @@ higherHalf:
     ; Initialize double buffer
     mov rax, InitDoubleBuffering
     call rax
+
+    ; Call global initializers
+    mov rbx, ctorsAddr
+    mov rax, [rbx]
+    cmp rax, 0
+    je .afterConstructors
+
+    mov rbx, ctorsSize
+    mov r15, [rbx]
+    
+    .loop:
+        cmp r15, 0
+        je .afterConstructors
+
+        push rax
+        push r15
+
+        mov rbx, [rax]
+        call rbx
+
+        pop r15
+        pop rax
+
+        sub r15, 8
+        add rax, 8
+
+        jmp .loop
+
+    .afterConstructors:
 
     ; Call kernel main
     mov rax, kmain
