@@ -20,3 +20,4 @@ typedef PageTableBase<PageDirectory*> PDPT;
 typedef PageTableBase<PDPT*> PML4;
 
 extern "C" void SetCurrentPML4(PhysicalAddress pml4);
+extern "C" uint64_t GetCR2();

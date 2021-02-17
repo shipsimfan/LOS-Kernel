@@ -1,6 +1,7 @@
 #include <memory/virtual.h>
 
 #include <bootloader.h>
+#include <interrupt/exception.h>
 #include <memory/physical.h>
 #include <panic.h>
 #include <string.h>
@@ -32,6 +33,24 @@ namespace Memory { namespace Virtual {
     PML4* kernelPML4;
     PML4* currentPML4;
 
+    void PageFaultHandler(Interrupt::Registers regs, Interrupt::ExceptionInfo info) {
+        uint64_t cr2 = GetCR2();
+
+        if ((info.errorCode & 1) == 0) {
+            // Using the first page of virtual memory to detect null pointer exceptions
+            // Meaning you can't use the first page of virtual memory. Hopefully you didn't need those 4 kilobytes
+            if (cr2 < PAGE_SIZE)
+                panic("Null Pointer Exception at %#llx (Faulting Address: %#llx)", info.rip, cr2);
+            else {
+                if (currentPML4 != kernelPML4 || cr2 >= KERNEL_VMA)
+                    Allocate((VirtualAddress)cr2, Physical::Allocate());
+                else
+                    panic("Page fault for access in user address space!\n    Fault Address: %#llX\n     Fault Instruction: %#llX\n    Error Code: %#X\n", cr2, info.rip, info.errorCode);
+            }
+        } else
+            panic("Page Protection Fault!\n    Fault Address: %#llX\n    Fault Instruction: %#llX\n    Error Code: %#X", cr2, info.rip, info.errorCode);
+    }
+
     extern "C" void InitVirtualMemory() {
         kernelPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
         currentPML4 = kernelPML4;
@@ -60,6 +79,10 @@ namespace Memory { namespace Virtual {
 
         // Set the pml4
         SetCurrentPML4((uint64_t)kernelPML4 - KERNEL_VMA);
+
+        // Set page fault handler
+        if (!Interrupt::InstallExceptionHandler(Interrupt::ExceptionType::PAGE_FAULT, PageFaultHandler))
+            panic("Unable to set page fault handler!");
     }
 
     void InvalidatePage(VirtualAddress addr) { asm volatile("invlpg (%0)" ::"r"((uint64_t)addr) : "memory"); }

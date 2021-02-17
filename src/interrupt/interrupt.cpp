@@ -6,6 +6,8 @@
 #include <panic.h>
 #include <string.h>
 
+#include <console.h>
+
 #include "interrupt.h"
 
 namespace Interrupt {

@@ -41,6 +41,7 @@ GLOBAL _start
 EXTERN kmain
 
 EXTERN InitConsole
+EXTERN InitDoubleBuffering
 EXTERN InitExceptions
 EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
@@ -118,6 +119,10 @@ higherHalf:
     call rax
 
     mov rax, InitHeap
+    call rax
+
+    ; Initialize double buffer
+    mov rax, InitDoubleBuffering
     call rax
 
     ; Call kernel main

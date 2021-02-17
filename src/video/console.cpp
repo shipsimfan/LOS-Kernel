@@ -41,6 +41,14 @@ namespace Console {
         ClearScreen();
     }
 
+    extern "C" void InitDoubleBuffering() {
+        backbuffer = new uint32_t[framebufferSize];
+        for (uint64_t i = 0; i < framebufferSize; i++)
+            backbuffer[i] = framebuffer[i];
+
+        doubleBufferInit = true;
+    }
+
     void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel) {
         if (x >= width || y >= height)
             return;
