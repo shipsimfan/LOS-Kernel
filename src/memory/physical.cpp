@@ -1,5 +1,6 @@
 #include <memory/physical.h>
 
+#include <bootloader.h>
 #include <mutex.h>
 #include <panic.h>
 
@@ -22,8 +23,6 @@ namespace Memory { namespace Physical {
     uint64_t numFreePages;
     uint64_t numTotalPages;
 
-    extern "C" MemoryMap* mmap;
-
     extern "C" void InitPhysicalMemory() {
         // Setup linker symbols
         KERNEL_TOP = (uint64_t)&__KERNEL_TOP;
@@ -45,6 +44,8 @@ namespace Memory { namespace Physical {
 
         uint64_t usable = 0;
         uint64_t unusable = 0;
+
+        nextFreePage = 0xFFFFFFFFFFFFFFFF;
 
         MemoryDescriptor* desc;
         for (uint64_t ptr = mmap->mapAddr; ptr < mmap->mapAddr + mmap->size; ptr += mmap->descSize) {
@@ -70,6 +71,9 @@ namespace Memory { namespace Physical {
             case MemoryType::PERSISTENT: {
                 usable += desc->numPages;
 
+                if (desc->physicalAddress < nextFreePage)
+                    nextFreePage = desc->physicalAddress;
+
                 uint64_t phys = desc->physicalAddress;
                 for (uint64_t i = 0; i < desc->numPages; i++, phys += PAGE_SIZE)
                     Free(phys);
@@ -90,6 +94,16 @@ namespace Memory { namespace Physical {
             Allocate(addr);
     }
 
+    bool IsPageFree(PhysicalAddress addr) {
+        uint64_t i = addr / PAGE_SIZE / 64;
+        uint64_t b = 64 - ((addr / PAGE_SIZE) % 64);
+
+        if (i >= bitmapSize)
+            return false;
+
+        return (bitmap[i] >> b) & 1 ? false : true;
+    }
+
     void Allocate(PhysicalAddress addr) {
         uint64_t i = addr / (PAGE_SIZE * 64);
         uint64_t b = 64 - ((addr / PAGE_SIZE) % 64);
@@ -108,16 +122,11 @@ namespace Memory { namespace Physical {
         bitmap[i] |= 1 << b;
 
         if (addr == nextFreePage) {
-            bool found = false;
-            for (; i < bitmapSize && !found; i++) {
-                for (; b < 64 && !found; b++) {
-                    if (((bitmap[i] >> b) & 1) == 0) {
-                        nextFreePage = (i * 64 + b) * PAGE_SIZE;
-                        found = true;
-                    }
+            for (i = nextFreePage; i < bitmapSize * 64 * PAGE_SIZE; i += PAGE_SIZE) {
+                if (IsPageFree(i)) {
+                    nextFreePage = i;
+                    break;
                 }
-
-                b = 0;
             }
         }
 

@@ -1,9 +1,9 @@
 #include <console.h>
 
+#include <bootloader.h>
+#include <panic.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include "uefi.h"
 
 namespace Console {
     uint32_t cursorX, cursorY;
@@ -19,8 +19,6 @@ namespace Console {
     uint32_t height;
 
     bool doubleBufferInit;
-
-    extern "C" GOPInfo* gopInfo;
 
     extern uint8_t font[];
 
