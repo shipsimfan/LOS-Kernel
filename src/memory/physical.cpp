@@ -1,6 +1,6 @@
 #include <memory/physical.h>
 
-#include <console.h>
+#include <mutex.h>
 #include <panic.h>
 
 #include "physical.h"
@@ -15,6 +15,7 @@ uint64_t KERNEL_SIZE;
 namespace Memory { namespace Physical {
     uint64_t bitmapSize;
     uint64_t bitmap[PHYSICAL_BITMAP_SIZE];
+    Mutex bitmapMutex;
 
     PhysicalAddress nextFreePage;
 
@@ -39,6 +40,8 @@ namespace Memory { namespace Physical {
         // Reserve everything
         for (uint64_t i = 0; i < bitmapSize; i++)
             bitmap[i] = 0xFFFFFFFFFFFFFFFF;
+
+        bitmapMutex.Unlock();
 
         uint64_t usable = 0;
         uint64_t unusable = 0;
@@ -94,26 +97,40 @@ namespace Memory { namespace Physical {
         if (i >= bitmapSize)
             return;
 
-        if ((bitmap[i] >> b) & 1)
+        bitmapMutex.Lock();
+        if ((bitmap[i] >> b) & 1) {
+            bitmapMutex.Unlock();
             return;
+        }
 
         numFreePages--;
 
         bitmap[i] |= 1 << b;
 
         if (addr == nextFreePage) {
-            for (i = nextFreePage; i < bitmapSize * 64 * PAGE_SIZE; i += PAGE_SIZE) {
-                if (IsFree(i)) {
-                    nextFreePage = i;
-                    break;
+            bool found = false;
+            for (; i < bitmapSize && !found; i++) {
+                for (; b < 64 && !found; b++) {
+                    if (((bitmap[i] >> b) & 1) == 0) {
+                        nextFreePage = (i * 64 + b) * PAGE_SIZE;
+                        found = true;
+                    }
                 }
+
+                b = 0;
             }
         }
+
+        bitmapMutex.Unlock();
     }
 
     PhysicalAddress Allocate() {
+        bitmapMutex.Lock();
         PhysicalAddress ret = nextFreePage;
+        bitmapMutex.Unlock();
+
         Allocate(nextFreePage);
+
         return ret;
     }
 
@@ -124,22 +141,17 @@ namespace Memory { namespace Physical {
         if (i >= bitmapSize)
             return;
 
-        if (((bitmap[i] >> b) & 1) == 0)
+        bitmapMutex.Lock();
+        if (((bitmap[i] >> b) & 1) == 0) {
+            bitmapMutex.Unlock();
             return;
+        }
 
         numFreePages++;
 
         bitmap[i] &= ~(1 << b);
-    }
 
-    bool IsFree(PhysicalAddress addr) {
-        uint64_t i = addr / PAGE_SIZE / 64;
-        uint64_t b = 64 - ((addr / PAGE_SIZE) % 64);
-
-        if (i >= bitmapSize)
-            return false;
-
-        return !((bitmap[i] >> b) & 1);
+        bitmapMutex.Unlock();
     }
 
     uint64_t GetTotalPages() { return numTotalPages; }

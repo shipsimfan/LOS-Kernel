@@ -8,8 +8,6 @@ namespace Memory { namespace Physical {
 
     void Free(PhysicalAddress addr);
 
-    bool IsFree(PhysicalAddress addr);
-
     uint64_t GetTotalPages();
     uint64_t GetFreePages();
 }} // namespace Memory::Physical
