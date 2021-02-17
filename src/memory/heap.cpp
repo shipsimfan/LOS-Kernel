@@ -3,6 +3,7 @@
 #include <memory/defs.h>
 #include <panic.h>
 #include <stddef.h>
+#include <mutex.h>
 
 #include "physical.h"
 
@@ -18,22 +19,34 @@ extern "C" void __cxa_throw_bad_array_new_length() { panic("Bad Array Length!");
 
 namespace Memory { namespace Heap {
     uint64_t top;
+    Mutex topMutex;
 
     extern "C" void InitHeap() { top = KERNEL_VMA + 0x100000000000; }
 
     void* Allocate(uint64_t size) {
+        // Garuntee 2-Byte alignment (for mutex)
+        if(size % 1 == 1)
+            size++;
+
+        topMutex.Lock();
         void* ret = (void*)top;
         top += size;
+        topMutex.Unlock();
+
         return ret;
     }
 
     void* AllocateAligned(uint64_t size, uint64_t alignment) {
-        if (top % alignment == 0)
+        topMutex.Lock();
+        if (top % alignment == 0) {
+            topMutex.Unlock();
             return Allocate(size);
+        }
 
-        void* ret = (void*)top;
         top = top - (top % alignment) + alignment;
-        return ret;
+        topMutex.Unlock();
+
+        return Allocate(size);
     }
 
     void Free(void* ptr) {}

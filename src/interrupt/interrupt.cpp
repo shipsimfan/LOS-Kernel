@@ -50,14 +50,10 @@ namespace Interrupt {
         // Clear the exception handlers
         for (int i = 0; i < NUM_EXCEPTIONS; i++)
             exceptionHandlers[i] = nullptr;
-
-        exceptionHandlersMutex.Unlock();
-
+            
         // Clear the irq handlers
         for (int i = 0; i < NUM_IRQ; i++)
             irqHandlers[i] = nullptr;
-
-        irqHandlersMutex.Unlock();
 
         // Clear the gdt, idt, and tss
         memset(idt, 0, sizeof(idt));

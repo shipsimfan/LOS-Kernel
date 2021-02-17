@@ -40,8 +40,6 @@ namespace Memory { namespace Physical {
         for (uint64_t i = 0; i < bitmapSize; i++)
             bitmap[i] = 0xFFFFFFFFFFFFFFFF;
 
-        bitmapMutex.Unlock();
-
         uint64_t usable = 0;
         uint64_t unusable = 0;
 

@@ -5,6 +5,7 @@
 #include <memory/physical.h>
 #include <panic.h>
 #include <string.h>
+#include <mutex.h>
 
 #include "virtual.h"
 
@@ -31,7 +32,10 @@ template <class T> void PageTableBase<T>::ClearEntry(int index) {
 
 namespace Memory { namespace Virtual {
     PML4* kernelPML4;
+    Mutex kernelPML4Mutex;
+
     PML4* currentPML4;
+    Mutex* currentPML4Mutex;
 
     void PageFaultHandler(Interrupt::Registers regs, Interrupt::ExceptionInfo info) {
         uint64_t cr2 = GetCR2();
@@ -54,6 +58,7 @@ namespace Memory { namespace Virtual {
     extern "C" void InitVirtualMemory() {
         kernelPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
         currentPML4 = kernelPML4;
+        currentPML4Mutex = &kernelPML4Mutex;
         memset(kernelPML4, 0, PAGE_SIZE);
 
         // Allocate the PDPTs
@@ -101,6 +106,7 @@ namespace Memory { namespace Virtual {
         VirtualToIndex(virt, pml4Index, pdptIndex, pdIndex, ptIndex, offset);
 
         bool supervisor = (uint64_t)virt < KERNEL_VMA;
+        currentPML4Mutex->Lock();
         // Check PDPT
         if ((currentPML4->entries[pml4Index] & 1) == 0) {
             // Allocate new PDPT
@@ -133,6 +139,8 @@ namespace Memory { namespace Virtual {
         // Allocate Page
         if ((pt->entries[ptIndex] & 1) == 0)
             pt->SetEntry(ptIndex, phys, true, supervisor);
+
+        currentPML4Mutex->Unlock();
     }
 
     void Allocate(VirtualAddress virt) { Allocate(virt, Physical::Allocate()); }
@@ -140,6 +148,7 @@ namespace Memory { namespace Virtual {
     void Free(VirtualAddress virt) {
         int pml4Index, pdptIndex, pdIndex, ptIndex, offset;
         VirtualToIndex(virt, pml4Index, pdptIndex, pdIndex, ptIndex, offset);
+        currentPML4Mutex->Lock();
         if (currentPML4->entries[pml4Index] != 0) {
             PDPT* pdpt = currentPML4->GetEntry(pml4Index);
             if (pdpt->entries[pdptIndex] != 0) {
@@ -151,6 +160,7 @@ namespace Memory { namespace Virtual {
                 }
             }
         }
+        currentPML4Mutex->Unlock();
     }
 
     PhysicalAddress CreateEmptyAddressSpace() { return 0; }

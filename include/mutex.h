@@ -1,5 +1,7 @@
 #pragma once
 
+class Process;
+
 class Mutex {
 public:
     Mutex();
@@ -8,5 +10,5 @@ public:
     void Unlock();
 
 private:
-    bool val;
+    Process* owner;
 };
