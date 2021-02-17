@@ -19,6 +19,9 @@ SECTION .bss
 stackBottom: resb 32768
 stackTop:
 
+;======================================
+; BOOTLOADER ARGUMENTS
+;======================================
 GLOBAL gopInfo
 gopInfo: resq 1
 

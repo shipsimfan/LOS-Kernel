@@ -4,9 +4,11 @@
 
 namespace Memory { namespace Physical {
     void Allocate(PhysicalAddress addr);
-    void Allocate();
+    PhysicalAddress Allocate();
 
     void Free(PhysicalAddress addr);
+
+    bool IsFree(PhysicalAddress addr);
 
     uint64_t GetTotalPages();
     uint64_t GetFreePages();
