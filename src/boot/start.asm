@@ -50,6 +50,8 @@ EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
 EXTERN InitHeap
 
+EXTERN SetCurrentProcessToKernel
+
 _start:
     ; Disable interrupts
     cli
@@ -166,6 +168,10 @@ higherHalf:
         jmp .loop
 
     .afterConstructors:
+
+    ; Set current process
+    mov rax, SetCurrentProcessToKernel
+    call rax
 
     ; Call kernel main
     mov rax, kmain
