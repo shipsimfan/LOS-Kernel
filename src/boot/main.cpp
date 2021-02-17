@@ -12,3 +12,5 @@ extern "C" void kmain() {
     while (1)
         asm volatile("hlt");
 }
+
+extern "C" void __cxa_pure_virtual() { panic("Attempting to invocate a pure virtual function!"); }
