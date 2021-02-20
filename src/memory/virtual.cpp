@@ -3,9 +3,9 @@
 #include <bootloader.h>
 #include <interrupt/exception.h>
 #include <memory/physical.h>
+#include <mutex.h>
 #include <panic.h>
 #include <string.h>
-#include <mutex.h>
 
 #include "virtual.h"
 
@@ -163,6 +163,81 @@ namespace Memory { namespace Virtual {
         currentPML4Mutex->Unlock();
     }
 
-    PhysicalAddress CreateEmptyAddressSpace() { return 0; }
-    void SetCurrentAddressSpace(PhysicalAddress addr) {}
+    PhysicalAddress CopyAddressSpace(PhysicalAddress original) {
+        PML4* oldPML4 = (PML4*)(original + KERNEL_VMA);
+
+        // Allocate new PML4
+        PML4* newPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
+
+        // Shallow copy higher half
+        for (int i = 256; i < 512; i++)
+            newPML4->entries[i] = oldPML4->entries[i];
+
+        // Deep copy lower half
+        uint64_t entry;
+        for (int pml4i = 0; pml4i < 256; pml4i++) {
+            if ((oldPML4->entries[pml4i] & 1) == 0) {
+                newPML4->entries[pml4i] = 0;
+                continue;
+            }
+
+            entry = oldPML4->entries[pml4i];
+            newPML4->SetEntry(pml4i, Physical::Allocate(), (entry & PAGE_WRITE) > 0, (entry & PAGE_SUPERVISOR) > 0);
+
+            PDPT* oldPDPT = oldPML4->GetEntry(pml4i);
+            PDPT* newPDPT = newPML4->GetEntry(pml4i);
+
+            for (int pdpti = 0; pdpti < 512; pdpti++) {
+                if ((oldPDPT->entries[pdpti] & 1) == 0) {
+                    newPDPT->entries[pdpti] = 0;
+                    continue;
+                }
+
+                entry = oldPDPT->entries[pdpti];
+                newPDPT->SetEntry(pdpti, Physical::Allocate(), (entry & PAGE_WRITE) > 0, (entry & PAGE_SUPERVISOR) > 0);
+
+                PageDirectory* oldPageDirectory = oldPDPT->GetEntry(pdpti);
+                PageDirectory* newPageDirectory = newPDPT->GetEntry(pdpti);
+
+                for (int pdi = 0; pdi < 512; pdi++) {
+                    if ((oldPageDirectory->entries[pdi] & 1) == 0) {
+                        newPageDirectory->entries[pdi] = 0;
+                        continue;
+                    }
+
+                    entry = oldPageDirectory->entries[pdi];
+                    newPageDirectory->SetEntry(pdi, Physical::Allocate(), (entry & PAGE_WRITE) > 0, (entry & PAGE_SUPERVISOR) > 0);
+
+                    PageTable* oldPageTable = oldPageDirectory->GetEntry(pdi);
+                    PageTable* newPageTable = newPageDirectory->GetEntry(pdi);
+
+                    for (int pti = 0; pti < 512; pti++) {
+                        if ((oldPageTable->entries[pti] & 1) == 0) {
+                            newPageTable->entries[pti] = 0;
+                            continue;
+                        }
+
+                        entry = oldPageTable->entries[pti];
+                        newPageTable->SetEntry(pti, Physical::Allocate(), (entry & PAGE_WRITE) > 0, (entry & PAGE_SUPERVISOR) > 0);
+
+                        void* oldPage = oldPageTable->GetEntry(pti);
+                        void* newPage = newPageTable->GetEntry(pti);
+
+                        memcpy(newPage, oldPage, sizeof(PAGE_SIZE));
+                    }
+                }
+            }
+        }
+
+        return (PhysicalAddress)newPML4 - KERNEL_VMA;
+    }
+
+    void SetCurrentAddressSpace(PhysicalAddress addr, Mutex* mutex) {
+        currentPML4 = (PML4*)(addr + KERNEL_VMA);
+        currentPML4Mutex = mutex;
+
+        SetCurrentPML4(addr);
+    }
+
+    PhysicalAddress GetKernelPagingStructure() { return (uint64_t)kernelPML4 - KERNEL_VMA; }
 }} // namespace Memory::Virtual

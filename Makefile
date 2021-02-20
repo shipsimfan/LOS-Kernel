@@ -20,7 +20,7 @@ C_OBJ_FILES := $(C_SRC_FILES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # PROGRAMS
 CPP := x86_64-elf-g++
-CPP_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -c -Wall -I./include  -D DEBUG -g
+CPP_FLAGS := -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-exceptions -fno-rtti -c -Wall -I./include  -D DEBUG -g
 
 ASM := nasm
 ASM_FLAGS := -f elf64 -g -F dwarf

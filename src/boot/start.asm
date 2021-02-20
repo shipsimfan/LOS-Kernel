@@ -17,6 +17,7 @@ SECTION .bss
 ; STACK
 ;======================================
 stackBottom: resb 32768
+GLOBAL stackTop
 stackTop:
 
 ;======================================
@@ -50,7 +51,7 @@ EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
 EXTERN InitHeap
 
-EXTERN SetCurrentProcessToKernel
+EXTERN __dso_handle
 
 _start:
     ; Disable interrupts
@@ -118,6 +119,10 @@ higherHalf:
     mov rbx, ctorsSize
     mov [rbx], r15
 
+    ; Init __dso_handle
+    mov rax, __dso_handle
+    mov QWORD [rax], 0
+
     ; Initialize the console
     mov rax, InitConsole
     call rax
@@ -168,10 +173,6 @@ higherHalf:
         jmp .loop
 
     .afterConstructors:
-
-    ; Set current process
-    mov rax, SetCurrentProcessToKernel
-    call rax
 
     ; Call kernel main
     mov rax, kmain

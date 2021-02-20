@@ -14,7 +14,7 @@ template <class T> struct PageTableBase {
     void ClearEntry(int index);
 };
 
-typedef PageTableBase<PhysicalAddress> PageTable;
+typedef PageTableBase<VirtualAddress> PageTable;
 typedef PageTableBase<PageTable*> PageDirectory;
 typedef PageTableBase<PageDirectory*> PDPT;
 typedef PageTableBase<PDPT*> PML4;

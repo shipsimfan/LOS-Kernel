@@ -2,12 +2,16 @@
 
 #include <memory/defs.h>
 
+#include <mutex.h>
+
 namespace Memory { namespace Virtual {
     void Allocate(VirtualAddress virt, PhysicalAddress phys);
     void Allocate(VirtualAddress virt);
 
     void Free(VirtualAddress virt);
 
-    PhysicalAddress CreateEmptyAddressSpace();
-    void SetCurrentAddressSpace(PhysicalAddress addr);
+    PhysicalAddress CopyAddressSpace(PhysicalAddress original);
+    void SetCurrentAddressSpace(PhysicalAddress addr, Mutex* mutex);
+
+    PhysicalAddress GetKernelPagingStructure();
 }} // namespace Memory::Virtual

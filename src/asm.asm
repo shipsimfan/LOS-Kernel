@@ -2,7 +2,7 @@ GLOBAL CompareExchange
 CompareExchange:
     mov rax, rsi
     cmpxchg [rdi], rdx
-    jnz .true
+    jz .true
 
     xor rax, rax
     ret

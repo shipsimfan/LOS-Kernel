@@ -1,30 +1,71 @@
-#include <process.h>
+#include <process/process.h>
 
+#include <memory/heap.h>
+#include <memory/virtual.h>
 #include <string.h>
 
-uint64_t nextPID = 0;
+uint64_t nextID = 0;
 
-Process* Process::CURRENT_PROCESS = nullptr;
-Mutex Process::CURRENT_PROCESS_MUTEX;
-
-Process kernelProcess("System");
-
-extern "C" void SetCurrentProcessToKernel() { 
-    Process::CURRENT_PROCESS_MUTEX.Lock();
-    Process::CURRENT_PROCESS = &kernelProcess;
-    Process::CURRENT_PROCESS_MUTEX.Unlock();
-}
+extern "C" uint64_t stackTop;
 
 Process::Process(const char* name) {
-    // Select next PID
-    pid = nextPID;
-    nextPID++;
+    // Select next ID
+    id = nextID;
+    nextID++;
 
     // Save name
     this->name = new char[strlen(name) + 1];
     strcpy(this->name, name);
+
+    if (currentProcess != nullptr) {
+        // Copy current address paging structure
+        currentProcess->pagingStructureMutex.Lock();
+        pagingStructure = Memory::Virtual::CopyAddressSpace(currentProcess->pagingStructure);
+        currentProcess->pagingStructureMutex.Unlock();
+
+        // Initialize a new stack
+        stack = (uint8_t*)((uint64_t)Memory::Heap::AllocateAligned(KERNEL_STACK_SIZE, 16) + KERNEL_STACK_SIZE);
+        memset((void*)((uint64_t)stack - KERNEL_STACK_SIZE), 0, KERNEL_STACK_SIZE);
+
+        // Insert into hashmap
+        int hashIdx = id % PROCESS_HASH_SIZE;
+        hashPrev = nullptr;
+
+        processHashMutex.Lock();
+        if (processHash[hashIdx] == nullptr) {
+            processHash[hashIdx] = this;
+            hashNext = nullptr;
+        } else {
+            hashNext = processHash[hashIdx];
+            hashNext->hashPrev = this;
+            processHash[hashIdx] = this;
+        }
+        processHashMutex.Unlock();
+    } else {
+        // Clear the hashmap
+        processHashMutex.Lock();
+        for (int i = 0; i < PROCESS_HASH_SIZE; i++)
+            processHash[i] = nullptr;
+
+        processHash[id % PROCESS_HASH_SIZE] = this;
+        processHashMutex.Unlock();
+
+        hashNext = nullptr;
+        hashPrev = nullptr;
+
+        // Set the current process to this
+        currentProcess = this;
+
+        // Set the paging structure
+        pagingStructure = Memory::Virtual::GetKernelPagingStructure();
+        Memory::Virtual::SetCurrentAddressSpace(pagingStructure, &pagingStructureMutex);
+
+        // Set the stack
+        stack = (uint8_t*)&stackTop;
+    }
 }
 
-const char* Process::GetName() { return name; }
-
-uint64_t Process::GetPID() { return pid; }
+Process::~Process() {
+    Memory::Heap::Free((void*)((uint64_t)stack - KERNEL_STACK_SIZE));
+    delete name;
+}

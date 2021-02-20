@@ -2,15 +2,15 @@
 
 #include <asm.h>
 #include <panic.h>
-#include <process.h>
+#include <process/process.h>
 
 Mutex::Mutex() { owner = nullptr; }
 
 void Mutex::Lock() {
-    if (Process::CURRENT_PROCESS == nullptr)
+    if (currentProcess == nullptr)
         return;
 
-    if (CompareExchange(&owner, 0, (uint64_t)Process::CURRENT_PROCESS | 1))
+    if (CompareExchange(&owner, 0, (uint64_t)currentProcess | 1))
         return;
 
     // Spinlock
@@ -20,10 +20,10 @@ void Mutex::Lock() {
 }
 
 void Mutex::Unlock() {
-    if (Process::CURRENT_PROCESS == nullptr || owner == nullptr)
+    if (currentProcess == nullptr || owner == nullptr)
         return;
 
-    if ((uint64_t)owner == ((uint64_t)Process::CURRENT_PROCESS | 1))
+    if ((uint64_t)owner == ((uint64_t)currentProcess | 1))
         owner = nullptr;
     else
         panic("Attempting to unlock mutex owned by another process!");

@@ -1,21 +1,20 @@
 #include <memory/heap.h>
 
 #include <memory/defs.h>
+#include <mutex.h>
 #include <panic.h>
 #include <stddef.h>
-#include <mutex.h>
 
 #include "physical.h"
 
 void* operator new(size_t size) { return Memory::Heap::Allocate(size); }
-
 void* operator new[](size_t size) { return Memory::Heap::Allocate(size); }
 
 void operator delete(void* p) { Memory::Heap::Free(p); }
+void operator delete(void* p, unsigned long) { Memory::Heap::Free(p); }
 
 void operator delete[](void* p) { Memory::Heap::Free(p); }
-
-extern "C" void __cxa_throw_bad_array_new_length() { panic("Bad Array Length!"); }
+void operator delete[](void* p, unsigned long) { Memory::Heap::Free(p); }
 
 namespace Memory { namespace Heap {
     uint64_t top;
@@ -25,10 +24,10 @@ namespace Memory { namespace Heap {
 
     void* Allocate(uint64_t size) {
         // Garuntee 2-Byte alignment (for mutex)
-        if(size % 1 == 1)
-            size++;
-
         topMutex.Lock();
+        if ((top & 1) == 1)
+            top++;
+
         void* ret = (void*)top;
         top += size;
         topMutex.Unlock();
