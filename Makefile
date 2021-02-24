@@ -54,9 +54,6 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $$(@D)/.
 	$(CC) $(CC_FLAGS) -o $@ $^
 
-$(OBJ_DIR)/%.o: $(CRT_DIR)/%.asm
-	$(ASM) $(ASM_FLAGS) -o $@ $^
-
 # DIRECTORY RULES
 $(OBJ_DIR)/.:
 	@mkdir -p $@
