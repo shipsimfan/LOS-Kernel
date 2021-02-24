@@ -37,7 +37,7 @@ uint64_t Fork() {
 
     // Do proper fork
     if (ProperFork(child)) {
-        // Add parent to running queue
+        // Add child to running queue
         runningQueue.push(child);
 
         // Return the id
@@ -80,7 +80,7 @@ void Exit(uint64_t status) {
     }
 
     // Exit
-    Process* oldProcess = currentProcess;
+    register Process* oldProcess = currentProcess;
 
     currentProcess = runningQueue.front();
     while (currentProcess == nullptr)

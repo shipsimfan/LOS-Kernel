@@ -11,20 +11,6 @@ extern "C" void kmain() {
     Console::Println("Total Memory: %i MB", (Memory::Physical::GetTotalPages() * PAGE_SIZE) / MEGABYTE);
     Console::Println("Free Memory: %i MB", (Memory::Physical::GetFreePages() * PAGE_SIZE) / MEGABYTE);
 
-    Console::Println("Current process: %s", currentProcess->name);
-
-    uint64_t pid = Fork();
-
-    if (pid == 0) {
-        Console::Println("Child!");
-        Console::Println("My PID is %i", currentProcess->id);
-        Exit(0xDEADBEEF);
-    } else {
-        Console::Println("Child PID is %i", pid);
-        uint64_t code = Wait(pid);
-        Console::Println("Child exit status: %#llX", code);
-    }
-
     while (1)
         asm volatile("hlt");
 }
