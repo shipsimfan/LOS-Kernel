@@ -11,6 +11,17 @@ extern "C" void kmain() {
     Console::Println("Total Memory: %i MB", (Memory::Physical::GetTotalPages() * PAGE_SIZE) / MEGABYTE);
     Console::Println("Free Memory: %i MB", (Memory::Physical::GetFreePages() * PAGE_SIZE) / MEGABYTE);
 
+    uint64_t pid = Fork();
+
+    if (pid == 0) {
+        Console::Println("Inside child process (%i)", currentProcess->id);
+        Exit(0x0BADC0DE);
+    } else {
+        Console::Println("The childs id is %i", pid);
+        uint64_t status = Wait(pid);
+        Console::Println("Exit status %#llX", status);
+    }
+
     while (1)
         asm volatile("hlt");
 }

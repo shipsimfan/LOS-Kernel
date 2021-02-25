@@ -8,7 +8,7 @@ Process kernelProcess("System");
 
 Process* currentProcess = nullptr;
 
-Process* processHash[PROCESS_HASH_SIZE];
+Queue<Process> processHash[PROCESS_HASH_SIZE];
 Mutex processHashMutex;
 
 Queue<Process> runningQueue;
@@ -18,7 +18,7 @@ extern "C" void TaskSwitch(Process* newProcess);
 extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
 
-void Schedule() {
+void Yield() {
     Process* newProcess = runningQueue.front();
 
     while (newProcess == nullptr)
@@ -30,6 +30,8 @@ void Schedule() {
 
     TaskSwitch(newProcess);
 }
+
+void QueueExecution(Process* process) { runningQueue.push(process); }
 
 uint64_t Fork() {
     // Create the child process
@@ -55,18 +57,21 @@ uint64_t Wait(uint64_t pid) {
     uint64_t idx = pid % PROCESS_HASH_SIZE;
 
     bool found = false;
-    for (Process* proc = processHash[idx]; proc != nullptr && proc->id <= pid; proc = proc->hashNext) {
-        if (proc->id == pid) {
+
+    processHashMutex.Lock();
+    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
+        if (iter.value->id == pid) {
             found = true;
-            proc->exit.push(currentProcess);
+            iter.value->exit.push(currentProcess);
             break;
         }
     }
+    processHashMutex.Unlock();
 
     if (!found)
         return 0xFFFFFFFFFFFFFFFF;
 
-    Schedule();
+    Yield();
 
     return currentProcess->queueData;
 }

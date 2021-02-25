@@ -29,29 +29,15 @@ Process::Process(const char* name) {
 
         // Insert into hashmap
         int hashIdx = id % PROCESS_HASH_SIZE;
-        hashPrev = nullptr;
 
         processHashMutex.Lock();
-        if (processHash[hashIdx] == nullptr) {
-            processHash[hashIdx] = this;
-            hashNext = nullptr;
-        } else {
-            hashNext = processHash[hashIdx];
-            hashNext->hashPrev = this;
-            processHash[hashIdx] = this;
-        }
+        processHash[hashIdx].push(this);
         processHashMutex.Unlock();
     } else {
         // Clear the hashmap
         processHashMutex.Lock();
-        for (int i = 0; i < PROCESS_HASH_SIZE; i++)
-            processHash[i] = nullptr;
-
-        processHash[id % PROCESS_HASH_SIZE] = this;
+        processHash[id % PROCESS_HASH_SIZE].push(this);
         processHashMutex.Unlock();
-
-        hashNext = nullptr;
-        hashPrev = nullptr;
 
         // Set the current process to this
         currentProcess = this;

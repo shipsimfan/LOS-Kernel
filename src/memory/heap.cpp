@@ -23,11 +23,7 @@ namespace Memory { namespace Heap {
     extern "C" void InitHeap() { top = KERNEL_VMA + 0x100000000000; }
 
     void* Allocate(uint64_t size) {
-        // Garuntee 2-Byte alignment (for mutex)
         topMutex.Lock();
-        if ((top & 1) == 1)
-            top++;
-
         void* ret = (void*)top;
         top += size;
         topMutex.Unlock();

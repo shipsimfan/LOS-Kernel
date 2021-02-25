@@ -1,5 +1,7 @@
 #pragma once
 
+#include <queue.h>
+
 class Process;
 
 class Mutex {
@@ -11,4 +13,6 @@ public:
 
 private:
     Process* owner;
+
+    Queue<Process> waitlist;
 };

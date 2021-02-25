@@ -25,9 +25,6 @@ struct Process {
 
     Queue<Process> exit;
 
-    Process* hashNext;
-    Process* hashPrev;
-
     uint64_t queueData;
 
     friend void ::SetKernelProcess();
@@ -37,4 +34,4 @@ extern Process* currentProcess;
 extern Process kernelProcess;
 
 extern Mutex processHashMutex;
-extern Process* processHash[PROCESS_HASH_SIZE];
+extern Queue<Process> processHash[PROCESS_HASH_SIZE];

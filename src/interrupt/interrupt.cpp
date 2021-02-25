@@ -50,7 +50,7 @@ namespace Interrupt {
         // Clear the exception handlers
         for (int i = 0; i < NUM_EXCEPTIONS; i++)
             exceptionHandlers[i] = nullptr;
-            
+
         // Clear the irq handlers
         for (int i = 0; i < NUM_IRQ; i++)
             irqHandlers[i] = nullptr;
