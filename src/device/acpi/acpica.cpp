@@ -10,15 +10,9 @@
 extern "C" uint64_t rsdp;
 
 // State Functions
-ACPI_STATUS AcpiOsInitialize() {
-    Console::Println("[ACPICA] Initializing ACPICA . . . ");
-    return AE_OK;
-}
+ACPI_STATUS AcpiOsInitialize() { return AE_OK; }
 
-ACPI_STATUS AcpiOsTerminate() {
-    Console::Println("[ACPICA] Terminating ACPICA . . . ");
-    return AE_OK;
-}
+ACPI_STATUS AcpiOsTerminate() { return AE_OK; }
 
 ACPI_PHYSICAL_ADDRESS AcpiOsGetRootPointer() { return rsdp; }
 
@@ -96,6 +90,7 @@ ACPI_STATUS AcpiOsCreateLock(ACPI_SPINLOCK* OutHandle) {
 ACPI_CPU_FLAGS AcpiOsAcquireLock(ACPI_SPINLOCK Handle) {
     Spinlock* s = (Spinlock*)Handle;
     s->Acquire();
+    return 0;
 }
 
 void AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags) {

@@ -1,7 +1,9 @@
 #include <device/acpi/acpi.h>
 
 #include <device/acpi/acpica/acpi.h>
+#include <errno.h>
 #include <panic.h>
+#include <string.h>
 
 extern "C" void InitACPITables() {
     ACPI_STATUS status = AcpiInitializeSubsystem();
@@ -18,4 +20,19 @@ extern "C" void InitACPITables() {
 }
 
 namespace ACPI {
-}
+    TableHeader* GetTable(const char* tableSignature) {
+        if (strlen(tableSignature) != 4) {
+            errno = ERROR_BAD_PARAMETER;
+            return nullptr;
+        }
+
+        TableHeader* table;
+        ACPI_STATUS status = AcpiGetTable((ACPI_STRING)tableSignature, 0, (ACPI_TABLE_HEADER**)&table);
+        if (ACPI_FAILURE(status)) {
+            errno = ERROR_ACPI_ERROR;
+            return nullptr;
+        }
+
+        return table;
+    }
+} // namespace ACPI
