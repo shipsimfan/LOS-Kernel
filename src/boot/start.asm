@@ -51,6 +51,7 @@ EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
 EXTERN InitHeap
 EXTERN InitACPITables
+EXTERN InitIRQ
 
 EXTERN __dso_handle
 
@@ -147,6 +148,10 @@ higherHalf:
 
     ; Load ACPI tables
     mov rax, InitACPITables
+    call rax
+
+    ; Initialize IRQs
+    mov rax, InitIRQ
     call rax
 
     ; Call global initializers

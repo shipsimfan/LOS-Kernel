@@ -2,6 +2,10 @@
 #include <interrupt/irq.h>
 #include <interrupt/stack.h>
 
+#include <device/acpi/acpi.h>
+#include <device/util.h>
+#include <errno.h>
+#include <memory/virtual.h>
 #include <mutex.h>
 #include <panic.h>
 #include <string.h>
@@ -25,6 +29,8 @@ namespace Interrupt {
     CPUPointer gdtr;
     TSS tss;
 
+    uint32_t* localAPIC;
+
     extern "C" void CommonExceptionHandler(Registers reg, ExceptionInfo info) {
         if (exceptionHandlers[info.interrupt] != nullptr)
             exceptionHandlers[info.interrupt](reg, info);
@@ -32,7 +38,18 @@ namespace Interrupt {
             panic("Exception %#X has occurred (%i)", info.interrupt, info.errorCode);
     }
 
-    extern "C" void CommonIRQHandler() {}
+    extern "C" void CommonIRQHandler(uint64_t irqNumber) {
+        if (irqHandlers[irqNumber] != nullptr)
+            irqHandlers[irqNumber](irqContexts[irqNumber]);
+        else
+            Console::Println("Unhandled IRQ (%i)", irqNumber);
+
+        localAPIC[LAPIC_EOI] = 0;
+        if (irqNumber >= 8)
+            outb(SLAVE_PIC_COMMAND, 0x20);
+
+        outb(MASTER_PIC_COMMAND, 0x20);
+    }
 
     void InstallInterruptHandler(uint8_t interrupt, uint64_t offset) {
         idt[interrupt].offset1 = offset & 0xFFFF;
@@ -166,6 +183,106 @@ namespace Interrupt {
         asm volatile("sti");
     }
 
+    extern "C" void InitIRQ() {
+        // Get MADT
+        ACPI::MADT* madt = (ACPI::MADT*)ACPI::GetTable(MADT_SIGNATURE);
+        if (madt == nullptr)
+            panic("Failed to get MADT! (%#llX)", errno);
+
+        // Verify 8259 PICs
+        if ((madt->flags & 1) == 0)
+            panic("No 8259 PICs installed! I/O APIC not currently supported!");
+
+        // Save the local APIC address
+        localAPIC = (uint32_t*)((uint64_t)madt->localAPICAddress + KERNEL_VMA);
+
+        // Find and mask all IO APICs
+        // Also look for a APIC address override
+        ACPI::MADT::EntryHeader* entry = madt->entries;
+        for (uint64_t i = (uint64_t)entry; i < (uint64_t)madt + madt->length; i += entry->length, entry = (ACPI::MADT::EntryHeader*)i) {
+            switch (entry->type) {
+            case ACPI::MADT::EntryType::IO_APIC: {
+                ACPI::MADT::IOAPICEntry* ioapic = (ACPI::MADT::IOAPICEntry*)entry;
+                uint32_t* selectReg = (uint32_t*)((uint64_t)ioapic->address + KERNEL_VMA);
+                uint32_t* dataReg = (uint32_t*)((uint64_t)selectReg + 0x10);
+
+                *selectReg = 1; // Select IOAPICVER
+                uint8_t numIRQ = ((*dataReg) >> 16) + 1;
+                for (int i = 0; i < numIRQ; i++) {
+                    *selectReg = 0x10 + 2 * i;
+                    *dataReg = LAPIC_DISABLE;
+                }
+
+                break;
+            }
+
+            case ACPI::MADT::EntryType::LOCAL_APIC_ADDRESS_OVERRIDE:
+                localAPIC = (uint32_t*)(((ACPI::MADT::LocalAPICAddressOverrideEntry*)entry)->address + KERNEL_VMA);
+                break;
+
+            default:
+                break;
+            }
+        }
+
+        // Allocate the local APIC address
+        // Done after madt loop incase of an override address
+        Memory::Virtual::Allocate(localAPIC, (uint64_t)localAPIC - KERNEL_VMA);
+
+        // Initialize the local APIC
+        InstallInterruptHandler(SPURIOUS_INTERRUPT_VECTOR, (uint64_t)SpuriousIRQHandler);
+        localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = SPURIOUS_INTERRUPT_VECTOR | 0x100;
+        localAPIC[LAPIC_TASK_PRIORITY] = 0;
+        localAPIC[LAPIC_LINT0_LVT] = LAPIC_DISABLE;
+        localAPIC[LAPIC_LINT1_LVT] = LAPIC_DISABLE;
+
+        // Install IRQ handlers
+        InstallInterruptHandler(NUM_EXCEPTIONS + 0, (uint64_t)IRQHandler0);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 1, (uint64_t)IRQHandler1);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 2, (uint64_t)IRQHandler2);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 3, (uint64_t)IRQHandler3);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 4, (uint64_t)IRQHandler4);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 5, (uint64_t)IRQHandler5);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 6, (uint64_t)IRQHandler6);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 7, (uint64_t)IRQHandler7);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 8, (uint64_t)IRQHandler8);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 9, (uint64_t)IRQHandler9);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 10, (uint64_t)IRQHandler10);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 11, (uint64_t)IRQHandler11);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 12, (uint64_t)IRQHandler12);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 13, (uint64_t)IRQHandler13);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 14, (uint64_t)IRQHandler14);
+        InstallInterruptHandler(NUM_EXCEPTIONS + 15, (uint64_t)IRQHandler15);
+
+        // Initialize the 8259 PICs
+        outb(MASTER_PIC_COMMAND, 0x11);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(SLAVE_PIC_COMMAND, 0x11);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(MASTER_PIC_DATA, NUM_EXCEPTIONS);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(SLAVE_PIC_DATA, NUM_EXCEPTIONS + 8);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(MASTER_PIC_DATA, 4);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(SLAVE_PIC_DATA, 2);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(MASTER_PIC_DATA, 0x01);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(SLAVE_PIC_DATA, 0x01);
+        outb(0x80, 0);
+        outb(0x80, 0);
+        outb(MASTER_PIC_DATA, 0);
+        outb(SLAVE_PIC_DATA, 0);
+    }
+
     bool InstallExceptionHandler(ExceptionType exception, ExceptionHandler handler) {
         exceptionHandlersMutex.Lock();
         if (exceptionHandlers[exception] != nullptr) {
@@ -184,9 +301,26 @@ namespace Interrupt {
         exceptionHandlersMutex.Unlock();
     }
 
-    bool InstallIRQHandler(uint8_t irq, IRQHandler handler, void* context = nullptr) { return false; }
+    bool InstallIRQHandler(uint8_t irq, IRQHandler handler, void* context = nullptr) {
+        if (irq > NUM_IRQ)
+            return false;
 
-    void* RemoveIRQHandler(uint8_t irq) { return nullptr; }
+        if (irqHandlers[irq] != nullptr)
+            return false;
+
+        irqContexts[irq] = context;
+        irqHandlers[irq] = handler;
+    }
+
+    void* RemoveIRQHandler(uint8_t irq) {
+        if (irq > NUM_IRQ)
+            return nullptr;
+
+        void* context = irqContexts[irq];
+        irqHandlers[irq] = nullptr;
+        irqContexts[irq] = nullptr;
+        return context;
+    }
 
     void SetInterruptStack(uint64_t stackBase) { tss.rsp0 = stackBase; }
 } // namespace Interrupt

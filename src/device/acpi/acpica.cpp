@@ -2,6 +2,7 @@
 
 #include <console.h>
 #include <device/acpi/acpica/acexcep.h>
+#include <device/util.h>
 #include <memory/heap.h>
 #include <process/process.h>
 #include <semaphore.h>
@@ -148,12 +149,44 @@ void AcpiOsVprintf(const char* Format, va_list Args) {}
 
 // Hardware Functions
 ACPI_STATUS AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32* Value, UINT32 Width) {
-    Console::Println("[ACPICA] Read Port");
+    switch (Width) {
+    case 8:
+        *Value = inb(Address);
+        break;
+
+    case 16:
+        *Value = inw(Address);
+        break;
+
+    case 32:
+        *Value = ind(Address);
+        break;
+
+    default:
+        return AE_ERROR;
+    }
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width) {
-    Console::Println("[ACPICA] Write Port");
+    switch (Width) {
+    case 8:
+        outb(Address, Value);
+        break;
+
+    case 16:
+        outw(Address, Value);
+        break;
+
+    case 32:
+        outd(Address, Value);
+        break;
+
+    default:
+        return AE_ERROR;
+    }
+
     return AE_OK;
 }
 
