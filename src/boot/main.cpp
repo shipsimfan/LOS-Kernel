@@ -11,6 +11,6 @@ extern "C" void kmain() {
     Console::Println("Total Memory: %i MB", (Memory::Physical::GetTotalPages() * PAGE_SIZE) / MEGABYTE);
     Console::Println("Free Memory: %i MB", (Memory::Physical::GetFreePages() * PAGE_SIZE) / MEGABYTE);
 
-        while (1)
+    while (1)
         asm volatile("hlt");
 }

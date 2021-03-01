@@ -2,6 +2,8 @@
 BIN_DIR := ./bin
 OBJ_DIR := ./obj
 SRC_DIR := ./src
+ACPICA_DIR := ./acpica
+ACPICA_OBJ_DIR := $(ACPICA_DIR)/obj
 
 # TARGET
 KERNEL := $(BIN_DIR)/kernel.elf
@@ -9,14 +11,14 @@ KERNEL := $(BIN_DIR)/kernel.elf
 # SOURCE FILES
 CPP_SRC_FILES := $(shell find $(SRC_DIR) -name '*.cpp')
 ASM_SRC_FILES := $(shell find $(SRC_DIR) -name '*.asm')
-C_SRC_FILES := $(shell find $(SRC_DIR) -name '*.c')
+ACPICA_SRC_FILES := $(shell find $(ACPICA_DIR) -name '*.cpp')
 
 LINK_FILE := ./link.ld
 
 # OBJECT FILES
 CPP_OBJ_FILES := $(CPP_SRC_FILES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 ASM_OBJ_FILES := $(ASM_SRC_FILES:$(SRC_DIR)/%.asm=$(OBJ_DIR)/%.o)
-C_OBJ_FILES := $(C_SRC_FILES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+ACPICA_OBJ_FILES := $(ACPICA_SRC_FILES:$(ACPICA_DIR)/%.cpp=$(ACPICA_OBJ_DIR)/%.o)
 
 # PROGRAMS
 CPP := x86_64-elf-g++
@@ -24,9 +26,6 @@ CPP_FLAGS := -ffreestanding -fomit-frame-pointer -mcmodel=large -mno-red-zone -m
 
 ASM := nasm
 ASM_FLAGS := -f elf64 -g -F dwarf
-
-CC := x86_64-elf-gcc
-CC_FLAGS := $(CPP_FLAGS)
 
 LD := x86_64-elf-g++
 LD_FLAGS := -ffreestanding -z max-page-size=0x1000 -T $(LINK_FILE) -g
@@ -39,10 +38,13 @@ clean:
 	rm -rf $(OBJ_DIR)/*
 	rm -rf $(BIN_DIR)/*
 
+clean-acpica:
+	rm -rf $(ACPICA_OBJ_DIR)/*
+
 # COMPILATION RULES
 .SECONDEXPANSION:
 
-$(KERNEL): $(C_OBJ_FILES) $(CPP_OBJ_FILES) $(ASM_OBJ_FILES)
+$(KERNEL): $(C_OBJ_FILES) $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(ACPICA_OBJ_FILES)
 	$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
@@ -51,8 +53,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
 	$(ASM) $(ASM_FLAGS) -o $@ $^
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $$(@D)/.
-	$(CC) $(CC_FLAGS) -o $@ $^
+$(ACPICA_OBJ_DIR)/%.o: $(ACPICA_DIR)/%.cpp
+	$(CPP) $(CPP_FLAGS) -o $@ $^
+
 
 # DIRECTORY RULES
 $(OBJ_DIR)/.:
@@ -64,6 +67,7 @@ $(OBJ_DIR)%/.:
 dirs:
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(ACPICA_OBJ_DIR)
 
 # . RULES
 .PRECIOUS: $(OBJ_DIR)/. $(OBJ_DIR)%/.

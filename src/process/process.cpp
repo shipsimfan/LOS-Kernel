@@ -4,7 +4,7 @@
 #include <memory/virtual.h>
 #include <string.h>
 
-uint64_t nextID = 0;
+uint64_t nextID = 1;
 
 extern "C" uint64_t stackTop;
 

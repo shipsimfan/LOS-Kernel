@@ -50,6 +50,7 @@ EXTERN InitExceptions
 EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
 EXTERN InitHeap
+EXTERN InitACPITables
 
 EXTERN __dso_handle
 
@@ -101,7 +102,6 @@ higherHalf:
     mov rax, 0xFFFF800000000000
     add rdi, rax
     add rsi, rax
-    add rdx, rax
 
     ; Save arguments
     mov rbx, mmap
@@ -143,6 +143,10 @@ higherHalf:
 
     ; Initialize double buffer
     mov rax, InitDoubleBuffering
+    call rax
+
+    ; Load ACPI tables
+    mov rax, InitACPITables
     call rax
 
     ; Call global initializers
