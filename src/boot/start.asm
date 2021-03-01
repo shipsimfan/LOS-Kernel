@@ -29,8 +29,8 @@ gopInfo: resq 1
 GLOBAL mmap
 mmap: resq 1
 
-GLOBAL rdsp
-rdsp: resq 1
+GLOBAL rsdp
+rsdp: resq 1
 
 ctorsAddr: resq 1
 ctorsSize: resq 1
@@ -110,7 +110,7 @@ higherHalf:
     mov rbx, gopInfo
     mov [rbx], rsi
 
-    mov rbx, rdsp
+    mov rbx, rsdp
     mov [rbx], rdx
 
     mov rbx, ctorsAddr
