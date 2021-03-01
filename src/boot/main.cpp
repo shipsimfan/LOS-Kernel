@@ -14,9 +14,7 @@ extern "C" void kmain() {
     uint64_t pid = Fork();
 
     if (pid == 0) {
-        Console::Println("Child (%i) starting . . . ", currentProcess->id);
-        for (int i = 0; i < 32; i++)
-            Console::Println("Child (%i): %i", currentProcess->id, i);
+        Console::Println("Child (%i)", currentProcess->id);
         Exit(0);
     } else {
         Console::Println("Parent (%i) starting . . . ", currentProcess->id);
