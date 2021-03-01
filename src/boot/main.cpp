@@ -22,7 +22,10 @@ extern "C" void kmain() {
         Console::Println("Parent (%i) starting . . . ", currentProcess->id);
         for (int i = 0; i < 32; i++)
             Console::Println("Parent (%i): %i", currentProcess->id, i);
+        Wait(pid);
     }
+
+    Console::Println("Going to sleep");
 
     while (1)
         asm volatile("hlt");

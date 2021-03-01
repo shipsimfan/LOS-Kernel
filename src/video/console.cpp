@@ -1,6 +1,7 @@
 #include <console.h>
 
 #include <bootloader.h>
+#include <mutex.h>
 #include <panic.h>
 #include <stdarg.h>
 #include <string.h>
@@ -11,6 +12,7 @@ namespace Console {
 
     uint32_t foregroundColor, backgroundColor;
 
+    Mutex framebufferMutex;
     uint32_t* framebuffer;
     uint32_t* backbuffer;
     uint64_t framebufferSize;
@@ -68,6 +70,7 @@ namespace Console {
     }
 
     bool DisplayCharacter(char character) {
+        framebufferMutex.Lock();
         bool ret = false;
 
         switch (character) {
@@ -91,6 +94,8 @@ namespace Console {
 
         if (cursorY >= consoleHeight)
             ScrollUp();
+
+        framebufferMutex.Unlock();
 
         return ret;
     }
