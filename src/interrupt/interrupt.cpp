@@ -9,6 +9,7 @@
 #include <mutex.h>
 #include <panic.h>
 #include <string.h>
+#include <time.h>
 
 #include <console.h>
 
@@ -277,6 +278,33 @@ namespace Interrupt {
         outb(0x80, 0);
         outb(MASTER_PIC_DATA, 0);
         outb(SLAVE_PIC_DATA, 0);
+    }
+
+    extern "C" void InitLocalAPICTimer() {
+        // Set the interrupt
+        localAPIC[LAPIC_TIMER_LVT] = LAPIC_DISABLE;
+        InstallInterruptHandler(PREEMPT_INTERRUPT_VECTOR, (uint64_t)PreemptHandler);
+
+        // Set the divider
+        localAPIC[LAPIC_TIMER_DIV] = 0x3;
+
+        // Wait till the start of the millisecond
+        uint64_t start = GetCurrentTime() + 1;
+        while (GetCurrentTime() < start)
+            ;
+
+        localAPIC[LAPIC_TIMER_LVT] = PREEMPT_INTERRUPT_VECTOR;
+        localAPIC[LAPIC_TIMER_INITCNT] = 0xFFFFFFFF;
+
+        while (GetCurrentTime() < start + 10)
+            ;
+
+        localAPIC[LAPIC_TIMER_LVT] = LAPIC_DISABLE;
+
+        uint32_t ticksIn10ms = 0xFFFFFFFF - localAPIC[LAPIC_TIMER_CURCNT];
+
+        localAPIC[LAPIC_TIMER_LVT] = PREEMPT_INTERRUPT_VECTOR | 0x20000;
+        localAPIC[LAPIC_TIMER_INITCNT] = ticksIn10ms;
     }
 
     bool InstallExceptionHandler(ExceptionType exception, ExceptionHandler handler) {

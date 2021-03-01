@@ -55,6 +55,7 @@
 #define SLAVE_PIC_COMMAND 0xA0
 #define SLAVE_PIC_DATA 0xA1
 
+#define PREEMPT_INTERRUPT_VECTOR 0xFE
 #define SPURIOUS_INTERRUPT_VECTOR 0xFF
 
 #pragma pack(push)
@@ -167,3 +168,5 @@ extern "C" void SpuriousIRQHandler();
 
 extern "C" void InstallIDT(CPUPointer* idtr);
 extern "C" void InstallGDT(CPUPointer* gdtr, uint16_t data0, uint16_t tss);
+
+extern void PreemptHandler();

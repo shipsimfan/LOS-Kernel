@@ -1,5 +1,6 @@
 #include <process/control.h>
 
+#include <console.h>
 #include <memory/virtual.h>
 #include <process/process.h>
 #include <queue.h>
@@ -17,6 +18,20 @@ extern "C" uint64_t ProperFork(Process* child);
 extern "C" void TaskSwitch(Process* newProcess);
 extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
+
+void Preempt() {
+    if (currentProcess == nullptr)
+        return;
+
+    if (runningQueue.front() == nullptr)
+        return;
+
+    QueueExecution(currentProcess);
+
+    asm volatile("sti");
+
+    Yield();
+}
 
 void Yield() {
     Process* newProcess = runningQueue.front();
