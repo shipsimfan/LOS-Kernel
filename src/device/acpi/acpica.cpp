@@ -4,6 +4,8 @@
 #include <device/acpi/acpica/acexcep.h>
 #include <memory/heap.h>
 #include <process/process.h>
+#include <semaphore.h>
+#include <spinlock.h>
 
 extern "C" uint64_t rsdp;
 
@@ -58,39 +60,53 @@ ACPI_STATUS AcpiOsSignal(UINT32 Function, void* Info) {
 }
 
 ACPI_STATUS AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_SEMAPHORE* OutHandle) {
-    Console::Println("[ACPICA] Create Semaphore");
+    Semaphore* sempahore = new Semaphore(InitialUnits, MaxUnits);
+    *OutHandle = sempahore;
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsSignalSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units) {
-    // Console::Println("[ACPICA] Semaphore Signal");
+    Semaphore* s = (Semaphore*)Handle;
+    for (uint32_t i = 0; i < Units; i++)
+        s->Signal();
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout) {
-    // Console::Println("[ACPICA] Semaphore Wait");
+    Semaphore* s = (Semaphore*)Handle;
+    for (uint32_t i = 0; i < Units; i++)
+        s->Wait();
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsDeleteSemaphore(ACPI_SEMAPHORE Handle) {
-    Console::Println("[ACPICA] Delete Semaphore");
+    Semaphore* s = (Semaphore*)Handle;
+    delete s;
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsCreateLock(ACPI_SPINLOCK* OutHandle) {
-    Console::Println("[ACPICA] Create Lock");
+    Spinlock* s = new Spinlock;
+    *OutHandle = s;
     return AE_OK;
 }
 
 ACPI_CPU_FLAGS AcpiOsAcquireLock(ACPI_SPINLOCK Handle) {
-    // Console::Println("[ACPICA] Acquire Lock");
-    return 0;
+    Spinlock* s = (Spinlock*)Handle;
+    s->Acquire();
 }
 
-void AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags) { // Console::Println("[ACPICA] Release Lock");
+void AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags) {
+    Spinlock* s = (Spinlock*)Handle;
+    s->Release();
 }
 
-void AcpiOsDeleteLock(ACPI_SPINLOCK Handle) { Console::Println("[ACPICA] Delete Lock"); }
+void AcpiOsDeleteLock(ACPI_SPINLOCK Handle) {
+    Spinlock* s = (Spinlock*)Handle;
+    delete s;
+}
 
 ACPI_STATUS AcpiOsCreateMutex(ACPI_MUTEX* OutHandle) {
     Mutex* mutex = new Mutex;

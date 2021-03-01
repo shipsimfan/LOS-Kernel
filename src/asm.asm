@@ -1,7 +1,7 @@
 GLOBAL CompareExchange
 CompareExchange:
     mov rax, rsi
-    cmpxchg [rdi], rdx
+    lock cmpxchg [rdi], rdx
     jz .true
 
     xor rax, rax
@@ -10,3 +10,8 @@ CompareExchange:
     .true:
         mov rax, 1
         ret
+
+GLOBAL Increament
+Increament:
+    inc QWORD [rdi]
+    ret
