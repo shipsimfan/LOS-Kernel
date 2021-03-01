@@ -1,4 +1,4 @@
-#include <device/hpet.h>
+#include <time.h>
 
 #include <console.h>
 #include <device/acpi/acpi.h>
@@ -8,15 +8,12 @@
 
 #include "hpet.h"
 
+uint64_t* address;
 uint64_t currentTimeMillis;
 
-void TimerIRQHandler(void* context) {
-    currentTimeMillis++;
-    if (currentTimeMillis % 1000 == 0)
-        Console::Println("Current System Time: %is", currentTimeMillis / 1000);
-}
+void TimerIRQHandler(void* context) { currentTimeMillis++; }
 
-HPET::HPET() {
+extern "C" void InitSystemTimer() {
     // Get the HPET table
     ACPI::HPET* table = (ACPI::HPET*)ACPI::GetTable(HPET_SIGNATURE);
     if (table == nullptr)
@@ -58,4 +55,14 @@ HPET::HPET() {
     address[HPET_TIMER_CONFIG_REG(0)] = TIMER_IRQ | (1 << 2) | (1 << 3) | (1 << 6);
     address[HPET_TIMER_COMPARE_REG(0)] = address[HPET_MAIN_COUNTER_REG] + timerVal;
     address[HPET_TIMER_COMPARE_REG(0)] = timerVal;
+}
+
+time_t GetCurrentTime() { return currentTimeMillis; }
+
+void Sleep(time_t milliseconds) {
+    // Blocking sleep function
+    uint64_t startTime = currentTimeMillis;
+    uint64_t endTime = startTime + milliseconds;
+    while (currentTimeMillis < endTime)
+        ;
 }

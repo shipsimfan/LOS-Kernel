@@ -52,6 +52,7 @@ EXTERN InitVirtualMemory
 EXTERN InitHeap
 EXTERN InitACPITables
 EXTERN InitIRQ
+EXTERN InitSystemTimer
 
 EXTERN __dso_handle
 
@@ -152,6 +153,10 @@ higherHalf:
 
     ; Initialize IRQs
     mov rax, InitIRQ
+    call rax
+
+    ; Start the system timer
+    mov rax, InitSystemTimer
     call rax
 
     ; Call global initializers
