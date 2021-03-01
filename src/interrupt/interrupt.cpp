@@ -41,8 +41,6 @@ namespace Interrupt {
     extern "C" void CommonIRQHandler(uint64_t irqNumber) {
         if (irqHandlers[irqNumber] != nullptr)
             irqHandlers[irqNumber](irqContexts[irqNumber]);
-        else
-            Console::Println("Unhandled IRQ (%i)", irqNumber);
 
         localAPIC[LAPIC_EOI] = 0;
         if (irqNumber >= 8)
@@ -233,8 +231,6 @@ namespace Interrupt {
         InstallInterruptHandler(SPURIOUS_INTERRUPT_VECTOR, (uint64_t)SpuriousIRQHandler);
         localAPIC[LAPIC_SPURIOUS_INTERRUPT_VECTOR] = SPURIOUS_INTERRUPT_VECTOR | 0x100;
         localAPIC[LAPIC_TASK_PRIORITY] = 0;
-        localAPIC[LAPIC_LINT0_LVT] = LAPIC_DISABLE;
-        localAPIC[LAPIC_LINT1_LVT] = LAPIC_DISABLE;
 
         // Install IRQ handlers
         InstallInterruptHandler(NUM_EXCEPTIONS + 0, (uint64_t)IRQHandler0);
@@ -310,6 +306,8 @@ namespace Interrupt {
 
         irqContexts[irq] = context;
         irqHandlers[irq] = handler;
+
+        return true;
     }
 
     void* RemoveIRQHandler(uint8_t irq) {

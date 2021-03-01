@@ -3,10 +3,19 @@
 #include <stdint.h>
 
 #define MADT_SIGNATURE "APIC"
+#define HPET_SIGNATURE "HPET"
 
 namespace ACPI {
 #pragma pack(push)
 #pragma pack(1)
+
+    struct AddressStructure {
+        uint8_t space;
+        uint8_t bitWidth;
+        uint8_t bitOffset;
+        uint8_t reserved;
+        uint64_t address;
+    };
 
     struct TableHeader {
         char signature[4];
@@ -62,6 +71,19 @@ namespace ACPI {
         uint32_t localAPICAddress;
         uint32_t flags;
         EntryHeader entries[1];
+    };
+
+    struct HPET : public TableHeader {
+        uint8_t hardwareRevisionID;
+        uint8_t comparatorCount : 5;
+        uint8_t counterSize : 1;
+        uint8_t reserved : 1;
+        uint8_t legacyReplacement : 1;
+        uint16_t PCIVendorID;
+        AddressStructure address;
+        uint8_t hpetNumber;
+        uint16_t minimumTick;
+        uint8_t pageProtection;
     };
 
 #pragma pack(pop)

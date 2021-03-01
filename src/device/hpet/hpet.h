@@ -1,0 +1,11 @@
+#pragma once
+
+#define HPET_GENERAL_CAPABILITIES_REG 0x00
+#define HPET_GENERAL_CONFIG_REG (0x10 / 8)
+#define HPET_GENERAL_INTERRUPT_REG (0x20 / 8)
+#define HPET_MAIN_COUNTER_REG (0xF0 / 8)
+#define HPET_TIMER_CONFIG_REG(n) ((0x100 + 0x20 * n) / 8)
+#define HPET_TIMER_COMPARE_REG(n) ((0x108 + 0x20 * n) / 8)
+#define HPET_TIMER_FSB_INTERRUPT_REG(n) ((0x110 + 0x20 * n) / 8)
+
+#define TIMER_IRQ 0
