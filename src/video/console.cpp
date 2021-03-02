@@ -70,7 +70,6 @@ namespace Console {
     }
 
     bool DisplayCharacter(char character) {
-        framebufferMutex.Lock();
         bool ret = false;
 
         switch (character) {
@@ -94,8 +93,6 @@ namespace Console {
 
         if (cursorY >= consoleHeight)
             ScrollUp();
-
-        framebufferMutex.Unlock();
 
         return ret;
     }
@@ -501,7 +498,9 @@ namespace Console {
     int Print(const char* format, ...) {
         va_list args;
         va_start(args, format);
+        framebufferMutex.Lock();
         int ret = Printv(format, args);
+        framebufferMutex.Unlock();
         va_end(args);
         return ret;
     }
@@ -509,10 +508,12 @@ namespace Console {
     int Println(const char* format, ...) {
         va_list args;
         va_start(args, format);
+        framebufferMutex.Lock();
         int ret = Printv(format, args);
         va_end(args);
 
         DisplayCharacter('\n');
+        framebufferMutex.Unlock();
 
         return ret + 1;
     }

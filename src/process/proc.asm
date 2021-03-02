@@ -60,7 +60,10 @@ ProperFork:
     mov rdx, [rdi]
 
     ; rcx <-- count
-    mov rcx, 32768
+    mov rcx, 32760
+
+    sub rax, 8
+    sub rdx, 8
 
     .copy:
         mov rsi, [rax]

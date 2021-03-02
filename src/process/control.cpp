@@ -86,6 +86,7 @@ uint64_t Wait(uint64_t pid) {
             break;
         }
     }
+
     processHashMutex.Unlock();
 
     if (!found)
@@ -105,6 +106,15 @@ void Exit(uint64_t status) {
     }
 
     // Remove from hashmap
+    uint64_t idx = currentProcess->id % PROCESS_HASH_SIZE;
+    processHashMutex.Lock();
+    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
+        if (iter.value->id == currentProcess->id) {
+            iter.Remove();
+            break;
+        }
+    }
+    processHashMutex.Unlock();
 
     // Exit
     register Process* oldProcess = currentProcess;

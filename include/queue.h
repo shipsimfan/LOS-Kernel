@@ -115,10 +115,19 @@ public:
                     newNode = currentNode->prev;
             }
 
+            if (queue->head == currentNode)
+                queue->head = currentNode->next;
+
+            if (queue->tail == currentNode)
+                queue->tail = currentNode->prev;
+
             delete currentNode;
 
             currentNode = newNode;
-            value = currentNode->val;
+            if (currentNode != nullptr)
+                value = currentNode->val;
+            else
+                value = nullptr;
 
             return currentNode != nullptr;
         }
