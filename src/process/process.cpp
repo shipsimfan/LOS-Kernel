@@ -53,5 +53,6 @@ Process::Process(const char* name) {
 
 Process::~Process() {
     Memory::Heap::Free((void*)((uint64_t)stack - KERNEL_STACK_SIZE));
+    Memory::Virtual::DeletePagingStructure(pagingStructure);
     delete name;
 }

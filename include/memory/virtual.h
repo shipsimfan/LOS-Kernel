@@ -11,6 +11,8 @@ namespace Memory { namespace Virtual {
     void Free(VirtualAddress virt);
 
     PhysicalAddress CopyAddressSpace(PhysicalAddress original);
+    void DeletePagingStructure(PhysicalAddress structure);
+
     void SetCurrentAddressSpace(PhysicalAddress addr, Mutex* mutex);
 
     PhysicalAddress GetKernelPagingStructure();

@@ -232,6 +232,39 @@ namespace Memory { namespace Virtual {
         return (PhysicalAddress)newPML4 - KERNEL_VMA;
     }
 
+    void DeletePagingStructure(PhysicalAddress structure) {
+        PML4* pml4 = (PML4*)(structure + KERNEL_VMA);
+        for (int i = 0; i < 256; i++) {
+            if (pml4->entries[i] != 0) {
+                PDPT* pdpt = pml4->GetEntry(i);
+
+                for (int j = 0; j < 512; j++) {
+                    if (pdpt->entries[j] != 0) {
+                        PageDirectory* pageDirectory = pdpt->GetEntry(j);
+
+                        for (int k = 0; k < 512; k++) {
+                            if (pageDirectory->entries[k] != 0) {
+                                PageTable* pageTable = pageDirectory->GetEntry(k);
+
+                                for (int l = 0; l < 512; l++)
+                                    if (pageTable->entries[l] != 0)
+                                        Physical::Free(pageTable->entries[l] & ~(PAGE_SIZE - 1));
+
+                                Physical::Free(pageDirectory->entries[k] & ~(PAGE_SIZE - 1));
+                            }
+                        }
+
+                        Physical::Free(pdpt->entries[j] & ~(PAGE_SIZE - 1));
+                    }
+                }
+
+                Physical::Free(pml4->entries[i] & ~(PAGE_SIZE - 1));
+            }
+        }
+
+        Physical::Free(structure);
+    }
+
     void SetCurrentAddressSpace(PhysicalAddress addr, Mutex* mutex) {
         currentPML4 = (PML4*)(addr + KERNEL_VMA);
         currentPML4Mutex = mutex;
