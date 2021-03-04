@@ -4,10 +4,16 @@
 #include <memory/heap.h>
 #include <string.h>
 
+#include <device/drivers/uefi.h>
+#include <device/manager.h>
 #include <process/control.h>
 #include <process/process.h>
 
 extern "C" void kmain() {
+    UEFIVideoDevice* videoDevice = new UEFIVideoDevice;
+    Device::RegisterDevice(nullptr, videoDevice);
+    Console::SetVideoDevice(videoDevice);
+
     Console::Println("Lance Operating System");
     Console::Println("Written by: Lance Hart\n");
 

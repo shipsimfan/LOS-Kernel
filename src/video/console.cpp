@@ -1,109 +1,28 @@
 #include <console.h>
 
 #include <bootloader.h>
-#include <mutex.h>
+#include <errno.h>
 #include <panic.h>
 #include <stdarg.h>
 #include <string.h>
 
 namespace Console {
-    uint32_t cursorX, cursorY;
-    uint32_t consoleWidth, consoleHeight;
+    Device::Device* videoDevice = nullptr;
 
-    uint32_t foregroundColor, backgroundColor;
+    void SetVideoDevice(Device::Device* device) { videoDevice = device; }
 
-    Mutex framebufferMutex;
-    uint32_t* framebuffer;
-    uint32_t* backbuffer;
-    uint64_t framebufferSize;
-    uint32_t pixelsPerScanline;
-    uint32_t width;
-    uint32_t height;
-
-    bool doubleBufferInit;
-
-    extern uint8_t font[];
-
-    extern "C" void InitConsole() {
-        doubleBufferInit = false;
-
-        SetForegroundColor(0xFF, 0xFF, 0xFF);
-        SetBackgroundColor(0x00, 0x00, 0x00);
-
-        framebuffer = (uint32_t*)((uint64_t)gopInfo->frameBufferBase + 0xFFFF800000000000);
-        backbuffer = nullptr;
-        framebufferSize = gopInfo->frameBufferSize;
-        pixelsPerScanline = gopInfo->pixelsPerScanline;
-        width = gopInfo->horizontalResolution;
-        height = gopInfo->verticalResolution;
-
-        consoleWidth = width / 8;
-        consoleHeight = height / 16;
-
-        ClearScreen();
-    }
-
-    extern "C" void InitDoubleBuffering() {
-        backbuffer = new uint32_t[framebufferSize];
-        for (uint64_t i = 0; i < framebufferSize; i++)
-            backbuffer[i] = framebuffer[i];
-
-        doubleBufferInit = true;
-    }
-
-    void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel) {
-        if (x >= width || y >= height)
+    void DisplayCharacter(char character) {
+        if (videoDevice == nullptr)
             return;
 
-        framebuffer[x + y * pixelsPerScanline] = pixel;
-        if (doubleBufferInit)
-            backbuffer[x + y * pixelsPerScanline] = pixel;
+        videoDevice->WriteStream(0, &character, 1);
     }
 
-    void RenderCharacter(char character, uint32_t x, uint32_t y) {
-        int mask[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-        uint8_t* glyph = (uint8_t*)((uint64_t)font + (uint64_t)character * 16);
+    int DisplayString(const char* str) {
+        if (videoDevice == nullptr)
+            return 0;
 
-        for (uint32_t cy = 0; cy < 16; cy++)
-            for (uint32_t cx = 0; cx < 8; cx++)
-                PlotPixel(x + 8 - cx, y + cy - 12, glyph[cy] & mask[cx] ? foregroundColor : backgroundColor);
-    }
-
-    bool DisplayCharacter(char character) {
-        bool ret = false;
-
-        switch (character) {
-        case '\n':
-            for (; cursorX < consoleWidth; cursorX++)
-                RenderCharacter(' ', cursorX * 8, cursorY * 16);
-
-            break;
-
-        default:
-            RenderCharacter(character, cursorX * 8, cursorY * 16);
-            cursorX++;
-            ret = true;
-            break;
-        }
-
-        if (cursorX >= consoleWidth) {
-            cursorX = 0;
-            cursorY++;
-        }
-
-        if (cursorY >= consoleHeight)
-            ScrollUp();
-
-        return ret;
-    }
-
-    int DisplayString(const char* string) {
-        int count = 0;
-        for (int i = 0; string[i]; i++)
-            if (DisplayCharacter(string[i]))
-                count++;
-
-        return count;
+        return videoDevice->WriteStream(0, (void*)str, INT32_MAX);
     }
 
     bool IsDigit(char c) { return c >= '0' && c <= '9'; }
@@ -496,73 +415,72 @@ namespace Console {
     }
 
     int Print(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        framebufferMutex.Lock();
-        int ret = Printv(format, args);
-        framebufferMutex.Unlock();
-        va_end(args);
-        return ret;
+        if (videoDevice != nullptr) {
+            va_list args;
+            va_start(args, format);
+            videoDevice->Open();
+            int ret = Printv(format, args);
+            videoDevice->Close();
+            va_end(args);
+            return ret;
+        }
+
+        return 0;
     }
 
     int Println(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        framebufferMutex.Lock();
-        int ret = Printv(format, args);
-        va_end(args);
+        if (videoDevice != nullptr) {
+            va_list args;
+            va_start(args, format);
+            videoDevice->Open();
+            int ret = Printv(format, args);
+            va_end(args);
+            DisplayCharacter('\n');
+            videoDevice->Close();
+            return ret + 1;
+        }
 
-        DisplayCharacter('\n');
-        framebufferMutex.Unlock();
-
-        return ret + 1;
+        return 0;
     }
 
-    void SetForegroundColor(uint8_t red, uint8_t green, uint8_t blue) { foregroundColor = (red << 16) | (green << 8) | blue; }
+    void SetForegroundColor(uint8_t red, uint8_t green, uint8_t blue) {
+        if (videoDevice != nullptr)
+            videoDevice->Write(FOREGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
+    }
 
-    void SetBackgroundColor(uint8_t red, uint8_t green, uint8_t blue) { backgroundColor = (red << 16) | (green << 8) | blue; }
+    void SetBackgroundColor(uint8_t red, uint8_t green, uint8_t blue) {
+        if (videoDevice != nullptr)
+            videoDevice->Write(BACKGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
+    }
 
     void SetCursorPos(uint32_t x, uint32_t y) {
-        if (x >= consoleWidth || y >= consoleHeight)
-            return;
-
-        cursorX = x;
-        cursorY = y;
+        if (videoDevice != nullptr) {
+            videoDevice->Write(CURSOR_X_ADDRESS, x);
+            videoDevice->Write(CURSOR_Y_ADDRESS, y);
+        }
     }
-
-    uint32_t GetCursorX() { return cursorX; }
-
-    uint32_t GetCursorY() { return cursorY; }
-
-    void ScrollUp() {
-        if (!doubleBufferInit) {
-            cursorX = 0;
-            cursorY = 1;
-            return;
+    uint32_t GetCursorX() {
+        if (videoDevice != nullptr) {
+            uint64_t val;
+            if (videoDevice->Read(CURSOR_X_ADDRESS, &val) == SUCCESS)
+                return val;
         }
 
-        uint64_t* fBuffer = (uint64_t*)framebuffer;
-        uint64_t* bBuffer = (uint64_t*)backbuffer;
-        uint64_t diff = 8 * pixelsPerScanline;
-
-        for (uint64_t i = 0; i < (framebufferSize / 8) - diff; i++) {
-            fBuffer[i] = bBuffer[i + diff];
-            bBuffer[i] = bBuffer[i + diff];
+        return 0;
+    }
+    uint32_t GetCursorY() {
+        if (videoDevice != nullptr) {
+            uint64_t val;
+            if (videoDevice->Read(CURSOR_Y_ADDRESS, &val) == SUCCESS)
+                return val;
         }
 
-        for (uint64_t i = (framebufferSize / 8) - diff; i < (framebufferSize / 8); i++) {
-            fBuffer[i] = 0;
-            bBuffer[i] = 0;
-        }
-
-        cursorY--;
+        return 0;
     }
 
     void ClearScreen() {
-        for (uint64_t i = 0; i < framebufferSize; i++)
-            framebuffer[i] = backgroundColor;
-
-        SetCursorPos(0, 1);
+        if (videoDevice != nullptr)
+            videoDevice->Write(CLEAR_SCREEN_ADDRESS, 0);
     }
 } // namespace Console
 

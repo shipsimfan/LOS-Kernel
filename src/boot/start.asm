@@ -44,8 +44,6 @@ GLOBAL _start
 
 EXTERN kmain
 
-EXTERN InitConsole
-EXTERN InitDoubleBuffering
 EXTERN InitExceptions
 EXTERN InitPhysicalMemory
 EXTERN InitVirtualMemory
@@ -126,10 +124,6 @@ higherHalf:
     mov rax, __dso_handle
     mov QWORD [rax], 0
 
-    ; Initialize the console
-    mov rax, InitConsole
-    call rax
-
     ; Initialize the exception handler
     mov rax, InitExceptions
     call rax
@@ -142,10 +136,6 @@ higherHalf:
     call rax
 
     mov rax, InitHeap
-    call rax
-
-    ; Initialize double buffer
-    mov rax, InitDoubleBuffering
     call rax
 
     ; Load ACPI tables

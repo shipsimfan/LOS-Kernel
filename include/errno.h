@@ -1,14 +1,19 @@
 #pragma once
 
-#include <stdint.h>
+#include <process/control.h>
 
 // Standard Errors
 #define SUCCESS 0x00
 
 // Programmer Errors
 #define ERROR_BAD_PARAMETER 0x01
+#define ERROR_NOT_IMPLEMENTED 0x02
+#define ERROR_OUT_OF_RANGE 0x03
+
+// Synchronization Errors
+#define ERROR_NOT_OWNER 0x10
 
 // Other Errors
-#define ERROR_ACPI_ERROR 0x100
+#define ERROR_ACPI_ERROR 0x20
 
-extern uint64_t errno;
+#define errno currentProcess->errno

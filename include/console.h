@@ -1,8 +1,17 @@
 #pragma once
 
+#include <device/device.h>
 #include <stdint.h>
 
+#define CURSOR_X_ADDRESS 0x00
+#define CURSOR_Y_ADDRESS 0x01
+#define FOREGROUND_COLOR_ADDRESS 0x02
+#define BACKGROUND_COLOR_ADDRESS 0x03
+#define CLEAR_SCREEN_ADDRESS 0x05
+
 namespace Console {
+    void SetVideoDevice(Device::Device* device);
+
     int Print(const char* format, ...);
     int Println(const char* format, ...);
 
@@ -13,6 +22,5 @@ namespace Console {
     uint32_t GetCursorX();
     uint32_t GetCursorY();
 
-    void ScrollUp();
     void ClearScreen();
 } // namespace Console

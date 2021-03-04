@@ -1,7 +1,5 @@
-#include <errno.h>
 #include <panic.h>
-
-uint64_t errno;
+#include <stdint.h>
 
 extern "C" void __cxa_pure_virtual() { panic("Attempting to invocate a pure virtual function!"); }
 

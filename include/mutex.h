@@ -11,6 +11,8 @@ public:
     void Lock();
     void Unlock();
 
+    Process* GetOwner();
+
 private:
     Process* owner;
 

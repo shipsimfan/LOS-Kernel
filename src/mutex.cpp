@@ -36,3 +36,5 @@ void Mutex::Unlock() {
     } else
         panic("Attempting to unlock mutex owned by another process!");
 }
+
+Process* Mutex::GetOwner() { return owner; }

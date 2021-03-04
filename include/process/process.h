@@ -24,8 +24,9 @@ struct Process {
     Mutex pagingStructureMutex;
 
     Queue<Process> exit;
-
     uint64_t queueData;
+
+    uint64_t errno;
 
     friend void ::SetKernelProcess();
 };
