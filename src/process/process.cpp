@@ -2,6 +2,7 @@
 
 #include <memory/heap.h>
 #include <memory/virtual.h>
+#include <process/control.h>
 #include <string.h>
 
 uint64_t nextID = 1;
@@ -52,7 +53,22 @@ Process::Process(const char* name) {
 }
 
 Process::~Process() {
+    // Free the stack
     Memory::Heap::Free((void*)((uint64_t)stack - KERNEL_STACK_SIZE));
+
+    // Free the memory
     Memory::Virtual::DeletePagingStructure(pagingStructure);
+
+    // Remove from hashmap
+    uint64_t idx = id % PROCESS_HASH_SIZE;
+    processHashMutex.Lock();
+    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
+        if (iter.value->id == id) {
+            iter.Remove();
+            break;
+        }
+    }
+    processHashMutex.Unlock();
+
     delete name;
 }

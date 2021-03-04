@@ -100,21 +100,10 @@ uint64_t Wait(uint64_t pid) {
 void Exit(uint64_t status) {
     // Awaken exit queue
     for (Process* proc = currentProcess->exit.front(); proc != nullptr; proc = currentProcess->exit.front()) {
-        proc->queueData = status;
-        runningQueue.push(proc);
+        proc->queueData = status & 0xFF;
+        QueueExecution(proc);
         currentProcess->exit.pop();
     }
-
-    // Remove from hashmap
-    uint64_t idx = currentProcess->id % PROCESS_HASH_SIZE;
-    processHashMutex.Lock();
-    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
-        if (iter.value->id == currentProcess->id) {
-            iter.Remove();
-            break;
-        }
-    }
-    processHashMutex.Unlock();
 
     // Exit
     register Process* oldProcess = currentProcess;
