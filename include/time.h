@@ -6,4 +6,4 @@ typedef uint64_t time_t;
 
 time_t GetCurrentTime();
 
-void Sleep();
+void Sleep(time_t milliseconds);

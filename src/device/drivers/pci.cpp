@@ -87,7 +87,7 @@ void CheckPCIFunction(uint8_t bus, uint8_t device, uint8_t function) {
     }
     newDevice->Close();
 
-    Console::Println("Registering new PCI Device: %#X - %#X", (uint8_t)devClass, (uint8_t)subClass);
+    Console::Println("[ PCI ] New device (%#X - %#X)", (uint8_t)devClass, (uint8_t)subClass);
 
     if (devClass == 0x06 && subClass == 0x04) {
         uint8_t secondaryBus = ReadConfigB(bus, device, function, PCI_CONFIG_SECONDARY_BUS_NUMBER);

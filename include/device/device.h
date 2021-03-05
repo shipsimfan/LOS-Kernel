@@ -7,7 +7,7 @@
 namespace Device {
     class Device {
     public:
-        enum Type { UNDEFINED, CONSOLE, PCI_DEVICE, IDE_CONTROLLER };
+        enum Type { UNDEFINED, CONSOLE, PCI_DEVICE, IDE_CONTROLLER, ATA_DRIVE };
 
         Device(const char* name, Type type);
         virtual ~Device();
@@ -36,8 +36,10 @@ namespace Device {
         virtual uint64_t DoWrite(uint64_t address, uint64_t value) = 0;
         virtual uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) = 0;
 
+        void SetName(const char* newName);
+
     private:
-        const char* name;
+        char* name;
         Type type;
 
         Device* parent;

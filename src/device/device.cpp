@@ -7,7 +7,7 @@
 namespace Device {
     Device::Device(const char* name, Type type) : type(type), parent(nullptr) {
         this->name = new char[strlen(name)];
-        strcpy((char*)this->name, name);
+        strcpy(this->name, name);
     }
 
     Device::~Device() {
@@ -96,4 +96,10 @@ namespace Device {
     }
 
     const char* Device::GetName() { return name; }
+
+    void Device::SetName(const char* newName) {
+        delete name;
+        name = new char[strlen(newName)];
+        strcpy(name, newName);
+    }
 } // namespace Device
