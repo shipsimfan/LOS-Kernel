@@ -4,6 +4,7 @@
 #include <memory/heap.h>
 #include <string.h>
 
+#include <device/drivers/ide.h>
 #include <device/drivers/pci.h>
 #include <device/drivers/uefi.h>
 #include <device/manager.h>
@@ -22,6 +23,7 @@ extern "C" void kmain() {
     Console::Println("Free Memory: %i MB (%i KB)", (Memory::Physical::GetFreePages() * PAGE_SIZE) / MEGABYTE, (Memory::Physical::GetFreePages() * PAGE_SIZE) / KILOBYTE);
 
     InitializePCIDriver();
+    InitializeIDEDriver();
 
     uint64_t pid = Fork();
 

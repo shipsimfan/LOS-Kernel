@@ -79,13 +79,14 @@ uint64_t Wait(uint64_t pid) {
         return 0xFFFFFFFFFFFFFFFF;
     }
 
-    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
+    Queue<Process>::Iterator iter(&processHash[idx]);
+    do {
         if (iter.value->id == pid) {
             found = true;
             iter.value->exit.push(currentProcess);
             break;
         }
-    }
+    } while (iter.Next());
 
     processHashMutex.Unlock();
 

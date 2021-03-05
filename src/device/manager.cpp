@@ -19,12 +19,15 @@ namespace Device {
         return SUCCESS;
     }
 
-    Queue<Device> GetDevices(Device::Type type) {
-        Queue<Device> ret;
-        if (rootDevices.front() != nullptr)
-            for (Queue<Device>::Iterator iter(&rootDevices); iter.value != nullptr; iter.Next())
-                iter.value->FindDevices(type, ret);
+    uint64_t GetDevices(Device::Type type, Queue<Device>& queue) {
+        uint64_t count = 0;
+        if (rootDevices.front() != nullptr) {
+            Queue<Device>::Iterator iter(&rootDevices);
+            do
+                count += iter.value->FindDevices(type, queue);
+            while (iter.Next());
+        }
 
-        return ret;
+        return count;
     }
 } // namespace Device

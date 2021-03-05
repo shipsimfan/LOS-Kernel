@@ -2,9 +2,13 @@
 
 #include <errno.h>
 #include <process/control.h>
+#include <string.h>
 
 namespace Device {
-    Device::Device(const char* name, Type type) : name(name), type(type), parent(nullptr) {}
+    Device::Device(const char* name, Type type) : type(type), parent(nullptr) {
+        this->name = new char[strlen(name)];
+        strcpy((char*)this->name, name);
+    }
 
     Device::~Device() {
         mutex.Lock();
@@ -71,14 +75,24 @@ namespace Device {
         mutex.Unlock();
     }
 
-    void Device::FindDevices(Type type, Queue<Device>& queue) {
+    uint64_t Device::FindDevices(Type type, Queue<Device>& queue) {
+        uint64_t count = 0;
         mutex.Lock();
-        if (this->type == type)
+        if (this->type == type) {
             queue.push(this);
+            count++;
+        }
 
-        for (Queue<Device>::Iterator iter(&children); iter.value != nullptr; iter.Next())
-            iter.value->FindDevices(type, queue);
+        if (children.front() != nullptr) {
+            Queue<Device>::Iterator iter(&children);
+            do
+                count += iter.value->FindDevices(type, queue);
+            while (iter.Next());
+        }
+
         mutex.Unlock();
+
+        return count;
     }
 
     const char* Device::GetName() { return name; }

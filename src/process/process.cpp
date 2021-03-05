@@ -62,12 +62,14 @@ Process::~Process() {
     // Remove from hashmap
     uint64_t idx = id % PROCESS_HASH_SIZE;
     processHashMutex.Lock();
-    for (Queue<Process>::Iterator iter(&processHash[idx]); iter.value != nullptr; iter.Next()) {
+    Queue<Process>::Iterator iter(&processHash[idx]);
+    do {
         if (iter.value->id == id) {
             iter.Remove();
             break;
         }
-    }
+    } while (iter.Next());
+
     processHashMutex.Unlock();
 
     delete name;

@@ -77,8 +77,14 @@ void CheckPCIFunction(uint8_t bus, uint8_t device, uint8_t function) {
 
     uint64_t devClass, subClass;
     newDevice->Open();
-    newDevice->Read(PCI_CONFIG_CLASS, &devClass);
-    newDevice->Read(PCI_CONFIG_SUB_CLASS, &subClass);
+    if (newDevice->Read(PCI_CONFIG_CLASS, &devClass) != SUCCESS) {
+        delete newDevice;
+        return;
+    }
+    if (newDevice->Read(PCI_CONFIG_SUB_CLASS, &subClass) != SUCCESS) {
+        delete newDevice;
+        return;
+    }
     newDevice->Close();
 
     Console::Println("Registering new PCI Device: %#X - %#X", (uint8_t)devClass, (uint8_t)subClass);

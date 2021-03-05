@@ -8,9 +8,6 @@ class PCIDevice : public Device::Device {
 public:
     PCIDevice(uint8_t bus, uint8_t device, uint8_t function);
 
-    uint8_t GetBaseClass();
-    uint8_t GetSubClass();
-
 protected:
     uint64_t OnOpen() override;
     uint64_t OnClose() override;
