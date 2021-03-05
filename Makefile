@@ -45,16 +45,20 @@ clean-acpica:
 .SECONDEXPANSION:
 
 $(KERNEL): $(C_OBJ_FILES) $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(ACPICA_OBJ_FILES)
-	$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
+	@echo "(LD) $@ . . ."
+	@$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
-	$(CPP) $(CPP_FLAGS) -o $@ $^
+	@echo "(CPP) $^ . . ."
+	@$(CPP) $(CPP_FLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
-	$(ASM) $(ASM_FLAGS) -o $@ $^
+	@echo "(ASM) $^ . . ."
+	@$(ASM) $(ASM_FLAGS) -o $@ $^
 
 $(ACPICA_OBJ_DIR)/%.o: $(ACPICA_DIR)/%.cpp
-	$(CPP) $(CPP_FLAGS) -o $@ $^
+	@echo "(CPP) $^ . . ."
+	@$(CPP) $(CPP_FLAGS) -o $@ $^
 
 
 # DIRECTORY RULES
