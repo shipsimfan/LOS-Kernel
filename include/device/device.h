@@ -7,7 +7,7 @@
 namespace Device {
     class Device {
     public:
-        enum Type { UNDEFINED, CONSOLE };
+        enum Type { UNDEFINED, CONSOLE, PCI_DEVICE };
 
         Device(const char* name, Type type);
         virtual ~Device();
