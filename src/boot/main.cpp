@@ -28,16 +28,13 @@ extern "C" void kmain() {
     InitializePCIDriver();
     InitializeIDEDriver();
 
-    int fd = Open(":0/LOS/SHELL.APP");
-    if (fd < 0)
-        Console::Println("Failed to open file!");
-    else {
-        Console::Println("File opened!");
-        char* buffer = new char[16];
-        Read(fd, buffer, 16);
-        Console::Println("ELF check: %c%c%c", buffer[1], buffer[2], buffer[3]);
-        Close(fd);
-    }
+    Console::Println("About to execute!");
+    uint64_t pid = Execute(":0/LOS/SHELL.APP");
+
+    if (pid == 0)
+        Console::Println("Error while executing!");
+    else
+        Console::Println("New process PID: %i", pid);
 
     while (1)
         asm volatile("hlt");

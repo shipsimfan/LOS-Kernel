@@ -13,6 +13,8 @@
 extern "C" void SetKernelProcess();
 
 struct Process {
+    enum State { NORMAL, UNINTERRUPTABLE };
+
     Process(const char* name);
     ~Process();
 
@@ -35,6 +37,8 @@ struct Process {
 
     FileDescriptor** files;
     uint64_t filesLength;
+
+    State state;
 
     friend void ::SetKernelProcess();
 

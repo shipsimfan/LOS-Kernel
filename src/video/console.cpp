@@ -492,7 +492,9 @@ void panic(const char* format, ...) {
 
     va_list args;
     va_start(args, format);
+    Console::videoDevice->Open();
     Console::Printv(format, args);
+    Console::videoDevice->Close();
     va_end(args);
 
     while (1)

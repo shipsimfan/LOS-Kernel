@@ -125,6 +125,41 @@ ProperFork:
         xor rax, rax
         ret
 
+GLOBAL TaskEnter
+TaskEnter:
+        ; Save registers
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rsp
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    ; Save stack pointer
+    mov rax, currentProcess
+    mov rbx, [rax]
+    mov [rbx], rsp
+
+    ; Switch current process
+    mov [rax], rdi
+
+    ; Set registers
+    mov rcx, rsi
+    mov r11, (1 << 9)
+
+    ; Enter the new process    
+    o64 sysret
+
 GLOBAL TaskSwitch
 TaskSwitch:
     ; Save registers

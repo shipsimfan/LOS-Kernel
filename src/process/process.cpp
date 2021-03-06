@@ -10,6 +10,9 @@ uint64_t nextID = 1;
 extern "C" uint64_t stackTop;
 
 Process::Process(const char* name) {
+    // Set state
+    state = State::NORMAL;
+
     // Select next ID
     id = nextID;
     nextID++;

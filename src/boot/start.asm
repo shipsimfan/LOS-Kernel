@@ -52,6 +52,7 @@ EXTERN InitACPITables
 EXTERN InitIRQ
 EXTERN InitSystemTimer
 EXTERN InitLocalAPICTimer
+EXTERN InitSystemCalls
 
 EXTERN __dso_handle
 
@@ -152,6 +153,10 @@ higherHalf:
 
     ; Start the preempt timer
     mov rax, InitLocalAPICTimer
+    call rax
+
+    ; Initialize system calls
+    mov rax, InitSystemCalls
     call rax
 
     ; Call global initializers

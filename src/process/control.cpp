@@ -1,6 +1,10 @@
 #include <process/control.h>
 
+#include "elf.h"
+
 #include <console.h>
+#include <fs.h>
+#include <interrupt/stack.h>
 #include <memory/virtual.h>
 #include <process/process.h>
 #include <queue.h>
@@ -18,9 +22,13 @@ extern "C" uint64_t ProperFork(Process* child);
 extern "C" void TaskSwitch(Process* newProcess);
 extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
+extern "C" void TaskEnter(Process* newProcess, uint64_t entry);
 
 void Preempt() {
     if (currentProcess == nullptr)
+        return;
+
+    if (currentProcess->state == Process::State::UNINTERRUPTABLE)
         return;
 
     if (runningQueue.front() == nullptr)
@@ -42,6 +50,7 @@ void Yield() {
     runningQueue.pop();
 
     Memory::Virtual::SetCurrentAddressSpace(newProcess->pagingStructure, &newProcess->pagingStructureMutex);
+    Interrupt::SetInterruptStack((uint64_t)newProcess->stack);
 
     TaskSwitch(newProcess);
 }
@@ -65,6 +74,51 @@ uint64_t Fork() {
     }
 
     return 0;
+}
+
+uint64_t Execute(const char* filepath) {
+    // Open the file
+    int fd = Open(filepath);
+    if (fd < 0)
+        return 0;
+
+    // Verify the elf header
+    if (!VerifyELFExecutable(fd))
+        return 0;
+
+    // Get the file name
+    const char* lastSlash = filepath;
+    for (int i = 0; filepath[i]; i++)
+        if (filepath[i] == '/' || filepath[i] == '\\')
+            lastSlash = filepath + i;
+
+    if (lastSlash != filepath)
+        lastSlash++;
+
+    // Create a new process
+    Process* newProcess = new Process(lastSlash);
+
+    // Switch to the new process address space
+    currentProcess->state = Process::State::UNINTERRUPTABLE;
+    Memory::Virtual::SetCurrentAddressSpace(newProcess->pagingStructure, &newProcess->pagingStructureMutex);
+
+    // Load the file into the new address space
+    uint64_t entry = LoadELFExecutable(fd);
+
+    Close(fd);
+
+    if (entry >= KERNEL_VMA) {
+        currentProcess->state = Process::State::NORMAL;
+        return 0;
+    }
+
+    // Switch process and entry
+    QueueExecution(currentProcess);
+    asm volatile("cli");
+    currentProcess->state = Process::State::NORMAL;
+    Interrupt::SetInterruptStack((uint64_t)newProcess->stack);
+    TaskEnter(newProcess, entry);
+    return newProcess->id;
 }
 
 uint64_t Wait(uint64_t pid) {
