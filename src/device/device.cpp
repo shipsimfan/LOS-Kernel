@@ -16,10 +16,16 @@ namespace Device {
             delete child;
     }
 
-    uint64_t Device::Open() {
+    int64_t Device::Open() {
         mutex.Lock();
-        currentProcess->AddDevice(this);
-        return OnOpen();
+        uint64_t descriptor = currentProcess->AddDevice(this);
+        uint64_t status = OnOpen();
+        if (status != SUCCESS) {
+            errno = status;
+            return -1;
+        }
+
+        return descriptor;
     }
 
     uint64_t Device::Close() {

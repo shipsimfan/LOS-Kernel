@@ -12,7 +12,7 @@ namespace Device {
         Device(const char* name, Type type);
         virtual ~Device();
 
-        uint64_t Open();
+        int64_t Open();
         uint64_t Close();
 
         uint64_t Read(uint64_t address, uint64_t* value);
