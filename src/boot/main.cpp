@@ -8,6 +8,7 @@
 #include <device/drivers/pci.h>
 #include <device/drivers/uefi.h>
 #include <device/manager.h>
+#include <filesystem/drivers/iso9660.h>
 #include <process/control.h>
 #include <process/process.h>
 
@@ -22,6 +23,7 @@ extern "C" void kmain() {
     Console::Println("Total Memory: %i MB (%i KB)", (Memory::Physical::GetTotalPages() * PAGE_SIZE) / MEGABYTE, (Memory::Physical::GetTotalPages() * PAGE_SIZE) / KILOBYTE);
     Console::Println("Free Memory: %i MB (%i KB)", (Memory::Physical::GetFreePages() * PAGE_SIZE) / MEGABYTE, (Memory::Physical::GetFreePages() * PAGE_SIZE) / KILOBYTE);
 
+    InitializeISO9660();
     InitializePCIDriver();
     InitializeIDEDriver();
 

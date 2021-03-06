@@ -35,7 +35,7 @@ private:
         Device* drives[2];
     } channels[2];
 
-    Process* sleepProcess;
+    bool irq;
 };
 
 class ATAPIDevice : public Device::Device {
@@ -63,5 +63,5 @@ private:
     uint16_t capabilities;
     uint32_t commandSets;
 
-    uint64_t size;
+    int64_t size;
 };

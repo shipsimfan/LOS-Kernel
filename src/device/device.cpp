@@ -38,8 +38,10 @@ namespace Device {
     }
 
     int64_t Device::ReadStream(uint64_t address, void* buffer, int64_t count) {
-        if (mutex.GetOwner() != currentProcess)
-            return ERROR_NOT_OWNER;
+        if (mutex.GetOwner() != currentProcess) {
+            errno = ERROR_NOT_OWNER;
+            return -1;
+        }
 
         int64_t countRead;
         errno = DoReadStream(address, buffer, count, countRead);
@@ -57,8 +59,10 @@ namespace Device {
     }
 
     int64_t Device::WriteStream(uint64_t address, void* buffer, int64_t count) {
-        if (mutex.GetOwner() != currentProcess)
-            return ERROR_NOT_OWNER;
+        if (mutex.GetOwner() != currentProcess) {
+            errno = ERROR_NOT_OWNER;
+            return -1;
+        }
 
         int64_t countWritten;
         errno = DoWriteStream(address, buffer, count, countWritten);

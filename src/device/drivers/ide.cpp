@@ -8,6 +8,7 @@
 #include <device/manager.h>
 #include <device/util.h>
 #include <errno.h>
+#include <filesystem/driver.h>
 #include <interrupt/irq.h>
 #include <string.h>
 #include <time.h>
@@ -51,7 +52,7 @@ void InitializeIDEDriver() {
     }
 }
 
-IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::IDE_CONTROLLER), sleepProcess(nullptr) {
+IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::IDE_CONTROLLER), irq(false) {
     // Save the address
     uint64_t value;
     pciDevice->Open();
@@ -254,14 +255,15 @@ uint64_t IDEDevice::DoWrite(uint64_t address, uint64_t value) {
 uint64_t IDEDevice::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }
 
 void IDEDevice::WaitIRQ() {
-    sleepProcess = currentProcess;
-    Yield();
+    while (!irq)
+        ;
+    irq = false;
 }
 
 void IDEDevice::IRQHandler(void* context) {
+    Console::Println("IDE IRQ has occurred!");
     IDEDevice* ide = (IDEDevice*)context;
-    QueueExecution(ide->sleepProcess);
-    ide->sleepProcess = nullptr;
+    ide->irq = true;
 }
 
 ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Device("", Type::ATA_DRIVE), ide(ide), channel(channel), drive(drive) {
@@ -333,6 +335,7 @@ ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Devic
 
     // Register drive
     Console::Println("[ IDE ] New ATAPI Drive (%i MB) - %s", size / 1024 / 1024, GetName());
+    RegisterDrive(this, size);
 }
 
 uint64_t ATAPIDevice::OnOpen() { return SUCCESS; }
@@ -353,28 +356,38 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
 
     // Select Drive
     uint64_t status = Write(ATA_REG_HDDEVSEL, drive << 4);
-    if (status != SUCCESS)
+    if (status != SUCCESS) {
+        ide->Close();
         return status;
+    }
     Sleep(2);
 
     // Enable IRQs
     status = Write(ATA_REG_CONTROL, ide->channels[channel].nIEN = 0);
-    if (status != SUCCESS)
+    if (status != SUCCESS) {
+        ide->Close();
         return status;
+    }
 
     // Select PIO Mode
     status = Write(ATA_REG_FEATURES, 0);
-    if (status != SUCCESS)
+    if (status != SUCCESS) {
+        ide->Close();
         return status;
+    }
 
     // Set buffer size
     status = Write(ATA_REG_LBA1, ATAPI_SECTOR_SIZE & 0xFF);
-    if (status != SUCCESS)
+    if (status != SUCCESS) {
+        ide->Close();
         return status;
+    }
 
     status = Write(ATA_REG_LBA2, ATAPI_SECTOR_SIZE >> 8);
-    if (status != SUCCESS)
+    if (status != SUCCESS) {
+        ide->Close();
         return status;
+    }
 
     // Prepare the packet
     uint8_t packet[12];
@@ -397,19 +410,25 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
 
         // Send PACKET command
         status = Write(ATA_REG_COMMAND, ATA_CMD_PACKET);
-        if (status != SUCCESS)
+        if (status != SUCCESS) {
+            ide->Close();
             return status;
+        }
 
         // Wait
-        if (!Polling(true))
+        if (!Polling(true)) {
+            ide->Close();
             return ERROR_DEVICE_ERROR;
+        }
 
         // Send packet
         asm("rep outsw" ::"c"(6), "d"(ide->channels[channel].IO), "S"(packet));
         ide->WaitIRQ();
 
-        if (!Polling(true))
+        if (!Polling(true)) {
+            ide->Close();
             return ERROR_DEVICE_ERROR;
+        }
 
         // Read Data
         for (int i = 0; i < ATAPI_SECTOR_SIZE / 2; i++)
@@ -419,14 +438,18 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
 
         do {
             status = Read(ATA_REG_STATUS, &value);
-            if (status != SUCCESS)
+            if (status != SUCCESS) {
+                ide->Close();
                 return status;
+            }
         } while (value & (ATA_SR_BSY | ATA_SR_DRQ));
 
         countRead += ATAPI_SECTOR_SIZE;
         wBuffer = (uint16_t*)((uint64_t)wBuffer + ATAPI_SECTOR_SIZE);
         lba++;
     }
+
+    ide->Close();
 
     return SUCCESS;
 }
