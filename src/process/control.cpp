@@ -52,6 +52,9 @@ uint64_t Fork() {
     // Create the child process
     Process* child = new Process(currentProcess->name);
 
+    // Copy address space
+    Memory::Virtual::CopyCurrentAddressSpace(child->pagingStructure);
+
     // Do proper fork
     if (ProperFork(child)) {
         // Add child to running queue

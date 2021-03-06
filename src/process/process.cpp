@@ -26,9 +26,9 @@ Process::Process(const char* name) {
     filesLength = 0;
 
     if (currentProcess != nullptr) {
-        // Copy current address paging structure
+        // Create new paging structures
         currentProcess->pagingStructureMutex.Lock();
-        pagingStructure = Memory::Virtual::CopyAddressSpace(currentProcess->pagingStructure);
+        pagingStructure = Memory::Virtual::CreateAddressSpace();
         currentProcess->pagingStructureMutex.Unlock();
 
         // Initialize a new stack

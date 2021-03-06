@@ -5,6 +5,7 @@
 #include <memory/physical.h>
 #include <mutex.h>
 #include <panic.h>
+#include <process/control.h>
 #include <string.h>
 
 #include "virtual.h"
@@ -163,15 +164,26 @@ namespace Memory { namespace Virtual {
         currentPML4Mutex->Unlock();
     }
 
-    PhysicalAddress CopyAddressSpace(PhysicalAddress original) {
-        PML4* oldPML4 = (PML4*)(original + KERNEL_VMA);
+    PhysicalAddress CreateAddressSpace() {
+        PhysicalAddress addr = Physical::Allocate();
+        PML4* newPML4 = (PML4*)(addr + KERNEL_VMA);
 
-        // Allocate new PML4
-        PML4* newPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
+        // Cloear lower half
+        for (int i = 0; i < 256; i++)
+            newPML4->ClearEntry(i);
 
         // Shallow copy higher half
         for (int i = 256; i < 512; i++)
-            newPML4->entries[i] = oldPML4->entries[i];
+            newPML4->entries[i] = kernelPML4->entries[i];
+
+        return addr;
+    }
+
+    void CopyCurrentAddressSpace(PhysicalAddress original) {
+        PML4* oldPML4 = (PML4*)(currentProcess->pagingStructure + KERNEL_VMA);
+
+        // Allocate new PML4
+        PML4* newPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
 
         // Deep copy lower half
         uint64_t entry;
@@ -228,8 +240,6 @@ namespace Memory { namespace Virtual {
                 }
             }
         }
-
-        return (PhysicalAddress)newPML4 - KERNEL_VMA;
     }
 
     void DeletePagingStructure(PhysicalAddress structure) {
