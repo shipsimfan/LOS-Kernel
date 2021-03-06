@@ -40,3 +40,11 @@ public:
 private:
     bool SetupDirectory(Filesystem* filesystem, Directory* directory, void* bufferStart, uint64_t bufferLength);
 };
+
+class ISO9660File : public File {
+public:
+    ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA);
+
+private:
+    uint32_t entryLBA;
+};

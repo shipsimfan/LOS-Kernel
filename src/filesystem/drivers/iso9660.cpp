@@ -110,4 +110,81 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     return 0;
 }
 
-bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory, void* bufferStart, uint64_t bufferLength) { return true; }
+bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory, void* bufferStart, uint64_t bufferLength) {
+    DirectoryEntry* entry = (DirectoryEntry*)bufferStart;
+    uint64_t entryI = (uint64_t)entry;
+
+    // Skip first two entries (self & parent)
+    entryI += entry->length;
+    entry = (DirectoryEntry*)entryI;
+    entryI += entry->length;
+    entry = (DirectoryEntry*)entryI;
+
+    // Read the entries
+    while (entry->length > 0) {
+        if (entry->flags & 2) {
+            char* name = new char[entry->filenameLength + 1];
+            memcpy(name, &entry->fileIdentifier, entry->filenameLength);
+            name[entry->filenameLength] = 0;
+            Directory* newDir = new Directory(name, directory, filesystem);
+            delete name;
+
+            directory->AddSubDirectory(newDir);
+
+            uint8_t* buffer = new uint8_t[entry->dirLength];
+            uint64_t bytesRead = filesystem->Read(entry->lba, buffer, entry->dirLength);
+            if (bytesRead < 0) {
+                delete buffer;
+                return false;
+            }
+
+            if (!SetupDirectory(filesystem, newDir, buffer, entry->dirLength)) {
+                delete buffer;
+                return false;
+            }
+
+            delete buffer;
+        } else {
+            // Find file name
+            int64_t nameLength = 0;
+            int64_t strLength;
+            char* fileIdentifier = (char*)(&entry->fileIdentifier);
+            for (strLength = 0; fileIdentifier[strLength] != ';'; strLength++) {
+                if (fileIdentifier[strLength] == '.')
+                    nameLength = strLength;
+            }
+
+            if (nameLength == 0)
+                nameLength = strLength;
+
+            char* filename = new char[nameLength + 1];
+            memcpy(filename, fileIdentifier, nameLength);
+            filename[nameLength] = 0;
+
+            // Find file extension
+            char* extension;
+            if (nameLength != strLength) {
+                nameLength++;
+                extension = new char[strLength - nameLength + 1];
+                memcpy(extension, fileIdentifier + nameLength, strLength - nameLength);
+                extension[strLength - nameLength] = 0;
+            } else {
+                extension = new char[1];
+                extension[0] = 0;
+            }
+
+            File* newFile = new ISO9660File(filename, extension, entry->dirLength, directory, filesystem, entry->lba);
+            delete filename;
+            delete extension;
+
+            directory->AddSubFile(newFile);
+        }
+
+        entryI += entry->length;
+        entry = (DirectoryEntry*)entryI;
+    }
+
+    return true;
+}
+
+ISO9660File::ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA) : File(name, extension, size, directory, filesystem), entryLBA(entryLBA) {}

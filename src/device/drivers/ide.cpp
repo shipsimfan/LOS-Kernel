@@ -261,7 +261,6 @@ void IDEDevice::WaitIRQ() {
 }
 
 void IDEDevice::IRQHandler(void* context) {
-    Console::Println("IDE IRQ has occurred!");
     IDEDevice* ide = (IDEDevice*)context;
     ide->irq = true;
 }

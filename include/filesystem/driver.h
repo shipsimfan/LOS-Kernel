@@ -14,6 +14,9 @@ private:
 };
 
 class File {
+public:
+    File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem);
+
 private:
     char* name;
     char* extension;
@@ -30,6 +33,9 @@ class Directory {
 public:
     Directory(const char* name, Directory* parent, Filesystem* filesystem);
 
+    void AddSubDirectory(Directory* directory);
+    void AddSubFile(File* file);
+
 private:
     char* name;
 
@@ -43,6 +49,9 @@ private:
 class Filesystem {
 public:
     Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name);
+
+    int64_t Read(uint64_t address, void* buffer, int64_t count);
+    int64_t Write(uint64_t address, void* buffer, int64_t count);
 
     void SetRootDirectory(Directory* newRootDir);
 
