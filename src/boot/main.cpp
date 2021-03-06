@@ -9,6 +9,7 @@
 #include <device/drivers/uefi.h>
 #include <device/manager.h>
 #include <filesystem/drivers/iso9660.h>
+#include <fs.h>
 #include <process/control.h>
 #include <process/process.h>
 
@@ -27,20 +28,16 @@ extern "C" void kmain() {
     InitializePCIDriver();
     InitializeIDEDriver();
 
-    uint64_t pid = Fork();
-
-    if (pid == 0) {
-        Console::Println("Child starting (%i) . . . ", currentProcess->id);
-        for (int i = 0; i < 5; i++)
-            Console::Println("Child (%i): %i", currentProcess->id, i);
-        Exit(0);
+    int fd = Open(":0/LOS/SHELL.APP");
+    if (fd < 0)
+        Console::Println("Failed to open file!");
+    else {
+        Console::Println("File opened!");
+        char* buffer = new char[16];
+        Read(fd, buffer, 16);
+        Console::Println("ELF check: %c%c%c", buffer[1], buffer[2], buffer[3]);
+        Close(fd);
     }
-
-    Console::Println("Current Free Memory: %i KB", (Memory::Physical::GetFreePages() * PAGE_SIZE) / KILOBYTE);
-
-    Wait(pid);
-
-    Console::Println("%i exited, current free memory: %i KB", pid, (Memory::Physical::GetFreePages() * PAGE_SIZE) / KILOBYTE);
 
     while (1)
         asm volatile("hlt");

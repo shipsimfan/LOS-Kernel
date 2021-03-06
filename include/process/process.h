@@ -33,7 +33,7 @@ struct Process {
     Device::Device** devices;
     uint64_t devicesLength;
 
-    File** files;
+    FileDescriptor** files;
     uint64_t filesLength;
 
     friend void ::SetKernelProcess();

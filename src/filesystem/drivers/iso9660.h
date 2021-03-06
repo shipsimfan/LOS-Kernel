@@ -37,6 +37,8 @@ class ISO9660Driver : public FilesystemDriver {
 public:
     int64_t DetectFilesystem(Device::Device* drive, uint64_t startLBA, int64_t size) override;
 
+    int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) override;
+
 private:
     bool SetupDirectory(Filesystem* filesystem, Directory* directory, void* bufferStart, uint64_t bufferLength);
 };
@@ -45,6 +47,5 @@ class ISO9660File : public File {
 public:
     ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA);
 
-private:
     uint32_t entryLBA;
 };

@@ -4,10 +4,13 @@
 
 class Filesystem;
 class Directory;
+class File;
 
 class FilesystemDriver {
 public:
     virtual int64_t DetectFilesystem(Device::Device* drive, uint64_t startLBA, int64_t size) = 0;
+
+    virtual int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) = 0;
 
 private:
     char* name;
@@ -16,6 +19,17 @@ private:
 class File {
 public:
     File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem);
+
+    bool LockRead();
+    void UnlockRead();
+
+    bool LockWrite();
+    void UnlockWrite();
+
+    Filesystem* GetFilesystem();
+    int64_t GetSize();
+    const char* GetName();
+    const char* GetExtension();
 
 private:
     char* name;
@@ -36,6 +50,11 @@ public:
     void AddSubDirectory(Directory* directory);
     void AddSubFile(File* file);
 
+    Queue<Directory>* GetSubDirectories();
+    Queue<File>* GetFiles();
+
+    const char* GetName();
+
 private:
     char* name;
 
@@ -53,6 +72,11 @@ public:
     int64_t Read(uint64_t address, void* buffer, int64_t count);
     int64_t Write(uint64_t address, void* buffer, int64_t count);
 
+    Device::Device* GetDrive();
+    FilesystemDriver* GetDriver();
+
+    Directory* GetRootDirectory();
+
     void SetRootDirectory(Directory* newRootDir);
 
 private:
@@ -65,6 +89,13 @@ private:
     char* volumeName;
 
     Directory* rootDir;
+};
+
+struct FileDescriptor {
+    FileDescriptor(File* file);
+
+    File* file;
+    int64_t offset;
 };
 
 void RegisterDrive(Device::Device* drive, int64_t driveSize);

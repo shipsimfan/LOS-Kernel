@@ -66,8 +66,6 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     char* volumeName = new char[32];
     strncpy(volumeName, (const char*)(sector + 40), 32);
 
-    Console::Println("New volume name: %s", volumeName);
-
     // Create the filesystem
     Filesystem* filesystem = new Filesystem(drive, &isoDriver, startLBA, size, volumeName);
     delete volumeName;
@@ -104,8 +102,6 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     drive->Close();
 
     RegisterFilesystem(filesystem);
-
-    Console::Println("Test");
 
     return 0;
 }
@@ -185,6 +181,32 @@ bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory,
     }
 
     return true;
+}
+
+int64_t ISO9660Driver::Read(File* file, int64_t offset, void* buffer, int64_t count) {
+    ISO9660File* isoFile = (ISO9660File*)file;
+
+    int64_t readStart = offset & ~(2047);
+    int64_t readEnd = count + offset;
+    if (readEnd & 2047) {
+        readEnd = readEnd & ~(2047);
+        readEnd += 2048;
+    }
+
+    int64_t bufToUseSize = readEnd - readStart;
+    uint8_t* bufToUse = new uint8_t[bufToUseSize];
+
+    file->GetFilesystem()->GetDrive()->Open();
+    int64_t ret = file->GetFilesystem()->Read(isoFile->entryLBA + (readStart / 2048), bufToUse, bufToUseSize);
+    file->GetFilesystem()->GetDrive()->Close();
+    if (ret < 0)
+        return -1;
+
+    memcpy(buffer, (void*)((uint64_t)bufToUse + (offset & 2047)), count);
+
+    delete bufToUse;
+
+    return count;
 }
 
 ISO9660File::ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA) : File(name, extension, size, directory, filesystem), entryLBA(entryLBA) {}

@@ -129,7 +129,7 @@ void Process::RemoveDevice(uint64_t deviceDescriptor) {
 uint64_t Process::AddFile(File* file) {
     for (uint64_t i = 0; i < filesLength; i++) {
         if (files[i] == nullptr) {
-            files[i] = file;
+            files[i] = new FileDescriptor(file);
             return i;
         }
     }
@@ -140,7 +140,7 @@ uint64_t Process::AddFile(File* file) {
     if (filesLength == 0)
         filesLength = 8;
 
-    File** newArray = new File*[filesLength];
+    FileDescriptor** newArray = new FileDescriptor*[filesLength];
 
     for (uint64_t i = 0; i < newFileDescriptor; i++)
         newArray[i] = files[i];
@@ -148,7 +148,7 @@ uint64_t Process::AddFile(File* file) {
     for (uint64_t i = newFileDescriptor; i < filesLength; i++)
         newArray[i] = nullptr;
 
-    newArray[newFileDescriptor] = file;
+    newArray[newFileDescriptor] = new FileDescriptor(file);
 
     delete files;
     files = newArray;
@@ -158,7 +158,8 @@ uint64_t Process::AddFile(File* file) {
 
 void Process::RemoveFile(File* file) {
     for (uint64_t i = 0; i < filesLength; i++) {
-        if (files[i] == file) {
+        if (files[i]->file == file) {
+            delete files[i];
             files[i] = nullptr;
             return;
         }
@@ -166,6 +167,9 @@ void Process::RemoveFile(File* file) {
 }
 
 void Process::RemoveFile(uint64_t fileDescriptor) {
-    if (fileDescriptor < filesLength)
+    if (fileDescriptor < filesLength) {
+        if (files[fileDescriptor] != nullptr)
+            delete files[fileDescriptor];
         files[fileDescriptor] = nullptr;
+    }
 }
