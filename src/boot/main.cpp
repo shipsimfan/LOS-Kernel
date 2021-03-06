@@ -33,8 +33,10 @@ extern "C" void kmain() {
 
     if (pid == 0)
         Console::Println("Error while executing!");
-    else
-        Console::Println("New process PID: %i", pid);
+    else {
+        uint64_t status = Wait(pid);
+        Console::Println("Shell exited with status: %#llX", status);
+    }
 
     while (1)
         asm volatile("hlt");

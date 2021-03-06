@@ -20,6 +20,7 @@ struct Process {
 
     uint64_t kernelStackPointer;
     uint8_t* stack;
+    uint64_t userStackPointer;
 
     char* name;
     uint64_t id;
