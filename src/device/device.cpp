@@ -6,7 +6,7 @@
 
 namespace Device {
     Device::Device(const char* name, Type type) : type(type), parent(nullptr) {
-        this->name = new char[strlen(name)];
+        this->name = new char[strlen(name) + 1];
         strcpy(this->name, name);
     }
 
@@ -18,6 +18,7 @@ namespace Device {
 
     uint64_t Device::Open() {
         mutex.Lock();
+        currentProcess->AddDevice(this);
         return OnOpen();
     }
 
@@ -26,6 +27,7 @@ namespace Device {
             return ERROR_NOT_OWNER;
 
         uint64_t ret = OnClose();
+        currentProcess->RemoveDevice(this);
         mutex.Unlock();
         return ret;
     }
@@ -103,7 +105,7 @@ namespace Device {
 
     void Device::SetName(const char* newName) {
         delete name;
-        name = new char[strlen(newName)];
+        name = new char[strlen(newName) + 1];
         strcpy(name, newName);
     }
 } // namespace Device

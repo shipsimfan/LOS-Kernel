@@ -1,5 +1,7 @@
 #pragma once
 
+#include <device/device.h>
+#include <filesystem/driver.h>
 #include <memory/defs.h>
 #include <mutex.h>
 #include <queue.h>
@@ -28,7 +30,21 @@ struct Process {
 
     uint64_t errno;
 
+    Device::Device** devices;
+    uint64_t devicesLength;
+
+    File** files;
+    uint64_t filesLength;
+
     friend void ::SetKernelProcess();
+
+    uint64_t AddDevice(Device::Device* device);
+    void RemoveDevice(Device::Device* device);
+    void RemoveDevice(uint64_t deviceDescriptor);
+
+    uint64_t AddFile(File* file);
+    void RemoveFile(File* file);
+    void RemoveFile(uint64_t fileDescriptor);
 };
 
 extern Process* currentProcess;

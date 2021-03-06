@@ -18,6 +18,13 @@ Process::Process(const char* name) {
     this->name = new char[strlen(name) + 1];
     strcpy(this->name, name);
 
+    // Setup descriptors
+    devices = nullptr;
+    devicesLength = 0;
+
+    files = nullptr;
+    filesLength = 0;
+
     if (currentProcess != nullptr) {
         // Copy current address paging structure
         currentProcess->pagingStructureMutex.Lock();
@@ -73,4 +80,92 @@ Process::~Process() {
     processHashMutex.Unlock();
 
     delete name;
+}
+
+uint64_t Process::AddDevice(Device::Device* device) {
+    for (uint64_t i = 0; i < devicesLength; i++) {
+        if (devices[i] == nullptr) {
+            devices[i] = device;
+            return i;
+        }
+    }
+
+    uint64_t newDeviceDescriptor = devicesLength;
+    devicesLength = devicesLength << 1;
+
+    if (devicesLength == 0)
+        devicesLength = 8;
+
+    Device::Device** newArray = new Device::Device*[devicesLength];
+
+    for (uint64_t i = 0; i < newDeviceDescriptor; i++)
+        newArray[i] = devices[i];
+
+    for (uint64_t i = newDeviceDescriptor; i < devicesLength; i++)
+        newArray[i] = nullptr;
+
+    newArray[newDeviceDescriptor] = device;
+
+    delete devices;
+    devices = newArray;
+
+    return newDeviceDescriptor;
+}
+
+void Process::RemoveDevice(Device::Device* device) {
+    for (uint64_t i = 0; i < devicesLength; i++) {
+        if (devices[i] == device) {
+            devices[i] = nullptr;
+            return;
+        }
+    }
+}
+
+void Process::RemoveDevice(uint64_t deviceDescriptor) {
+    if (deviceDescriptor < devicesLength)
+        devices[deviceDescriptor] = nullptr;
+}
+
+uint64_t Process::AddFile(File* file) {
+    for (uint64_t i = 0; i < filesLength; i++) {
+        if (files[i] == nullptr) {
+            files[i] = file;
+            return i;
+        }
+    }
+
+    uint64_t newFileDescriptor = filesLength;
+    filesLength = filesLength << 1;
+
+    if (filesLength == 0)
+        filesLength = 8;
+
+    File** newArray = new File*[filesLength];
+
+    for (uint64_t i = 0; i < newFileDescriptor; i++)
+        newArray[i] = files[i];
+
+    for (uint64_t i = newFileDescriptor; i < filesLength; i++)
+        newArray[i] = nullptr;
+
+    newArray[newFileDescriptor] = file;
+
+    delete files;
+    files = newArray;
+
+    return newFileDescriptor;
+}
+
+void Process::RemoveFile(File* file) {
+    for (uint64_t i = 0; i < filesLength; i++) {
+        if (files[i] == file) {
+            files[i] = nullptr;
+            return;
+        }
+    }
+}
+
+void Process::RemoveFile(uint64_t fileDescriptor) {
+    if (fileDescriptor < filesLength)
+        files[fileDescriptor] = nullptr;
 }
