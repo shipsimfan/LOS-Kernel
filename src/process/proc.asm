@@ -153,6 +153,9 @@ TaskEnter:
     ; Switch current process
     mov [rax], rdi
 
+    ; Set stack pointer
+    mov rsp, 0x7FFFFFFFFFF0
+
     ; Set registers
     mov rcx, rsi
     mov r11, (1 << 9)

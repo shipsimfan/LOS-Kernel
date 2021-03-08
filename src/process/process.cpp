@@ -105,13 +105,20 @@ Process::~Process() {
 
     // Close all descriptors
     for (uint64_t i = 0; i < devicesLength; i++)
-        Device::Close(i);
+        if (devices[i] != nullptr)
+            devices[i]->DecreamentRefCount();
 
-    for (uint64_t i = 0; i < filesLength; i++)
-        Close(i);
+    for (uint64_t i = 0; i < filesLength; i++) {
+        if (files[i] != nullptr) {
+            files[i]->file->DecreamentRefCount();
+            delete files[i];
+        }
+    }
 
     processHashMutex.Unlock();
 
+    delete devices;
+    delete files;
     delete name;
 }
 
