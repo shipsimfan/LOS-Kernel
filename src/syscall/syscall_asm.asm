@@ -13,7 +13,8 @@ SystemCallHandler:
 
     push rcx
     push r11
-
+    
+    mov rcx, r10
     call SystemCall
 
     pop r11

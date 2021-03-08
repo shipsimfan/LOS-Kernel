@@ -20,8 +20,11 @@ namespace Device {
 
         void AddChild(Device* child);
         uint64_t FindDevices(Type type, Queue<Device>& queue);
+        void RemoveChild(Device* child);
 
         const char* GetName();
+
+        Device* GetParent();
 
         void IncreamentRefCount();
         void DecreamentRefCount();

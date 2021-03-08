@@ -4,6 +4,7 @@
 #include <device/drivers/pci.h>
 #include <device/drivers/ps2.h>
 #include <device/drivers/uefi.h>
+#include <device/manager.h>
 #include <filesystem/drivers/iso9660.h>
 #include <memory/physical.h>
 #include <process/control.h>
@@ -11,6 +12,13 @@
 extern "C" void kmain() {
     // Initialize the video driver
     InitializeUEFIVideoDriver();
+
+    Queue<Device::Device> consoles;
+    uint64_t count = Device::GetDevices(Device::Device::Type::CONSOLE, consoles);
+    if (count > 0) {
+        Device::Open(consoles.front());
+        Console::SetStdOutput(consoles.front());
+    }
 
     Console::Println("Lance Operating System");
     Console::Println("Written by: Lance Hart\n");
@@ -23,6 +31,13 @@ extern "C" void kmain() {
     InitializePCIDriver();
     InitializeIDEDriver();
     InitializePS2Driver();
+
+    Queue<Device::Device> keyboards;
+    count = Device::GetDevices(Device::Device::Type::KEYBOARD, keyboards);
+    if (count > 0) {
+        Device::Open(keyboards.front());
+        Console::SetStdInput(keyboards.front());
+    }
 
     Console::Println("[ LOS ] Executing shell . . .");
     uint64_t pid = Execute(":0/LOS/SHELL.APP");

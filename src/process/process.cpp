@@ -1,5 +1,7 @@
 #include <process/process.h>
 
+#include <device/manager.h>
+#include <fs.h>
 #include <memory/heap.h>
 #include <memory/virtual.h>
 #include <process/control.h>
@@ -44,6 +46,27 @@ Process::Process(const char* name) {
         processHashMutex.Lock();
         processHash[hashIdx].push(this);
         processHashMutex.Unlock();
+
+        // Clone descriptors
+        devicesLength = currentProcess->devicesLength;
+        if (devicesLength > 0) {
+            devices = new Device::Device*[devicesLength];
+            for (uint64_t i = 0; i < devicesLength; i++) {
+                devices[i] = currentProcess->devices[i];
+                if (devices[i] != nullptr)
+                    devices[i]->IncreamentRefCount();
+            }
+        }
+
+        filesLength = currentProcess->filesLength;
+        if (filesLength > 0) {
+            files = new FileDescriptor*[filesLength];
+            for (uint64_t i = 0; i < filesLength; i++) {
+                files[i] = currentProcess->files[i];
+                if (files[i] != nullptr)
+                    files[i]->file->IncreamentRefCount();
+            }
+        }
     } else {
         // Clear the hashmap
         processHashMutex.Lock();
@@ -79,6 +102,13 @@ Process::~Process() {
             break;
         }
     } while (iter.Next());
+
+    // Close all descriptors
+    for (uint64_t i = 0; i < devicesLength; i++)
+        Device::Close(i);
+
+    for (uint64_t i = 0; i < filesLength; i++)
+        Close(i);
 
     processHashMutex.Unlock();
 
@@ -127,6 +157,13 @@ void Process::RemoveDevice(Device::Device* device) {
 void Process::RemoveDevice(uint64_t deviceDescriptor) {
     if (deviceDescriptor < devicesLength)
         devices[deviceDescriptor] = nullptr;
+}
+
+Device::Device* Process::GetDevice(int deviceDescriptor) {
+    if (deviceDescriptor >= devicesLength)
+        return nullptr;
+
+    return devices[deviceDescriptor];
 }
 
 uint64_t Process::AddFile(File* file) {

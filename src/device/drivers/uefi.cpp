@@ -165,5 +165,4 @@ void UEFIVideoDevice::ClearScreen() {
 void InitializeUEFIVideoDriver() {
     UEFIVideoDevice* videoDevice = new UEFIVideoDevice;
     Device::RegisterDevice(nullptr, videoDevice);
-    Console::SetVideoDevice(videoDevice);
 }

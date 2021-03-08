@@ -7,28 +7,28 @@
 #include <string.h>
 
 namespace Console {
-    Device::Device* videoDevice = nullptr;
-    Device::Device* inputDevice = nullptr;
+    Device::Device* stdOutput = nullptr;
+    Device::Device* stdInput = nullptr;
 
-    void SetVideoDevice(Device::Device* device) { videoDevice = device; }
-    void SetInputDevice(Device::Device* device) { inputDevice = device; }
+    void SetStdOutput(Device::Device* device) { stdOutput = device; }
+    void SetStdInput(Device::Device* device) { stdInput = device; }
 
     void DisplayCharacter(char character) {
-        if (videoDevice == nullptr)
+        if (stdOutput == nullptr)
             return;
 
-        videoDevice->WriteStream(0, &character, 1);
+        stdOutput->WriteStream(0, &character, 1);
     }
 
     int DisplayString(const char* str) {
-        if (videoDevice == nullptr)
+        if (stdOutput == nullptr)
             return 0;
 
-        return videoDevice->WriteStream(0, (void*)str, INT32_MAX);
+        return stdOutput->WriteStream(0, (void*)str, INT32_MAX);
     }
 
     int64_t Read(void* buffer, int64_t count) {
-        int64_t ret = inputDevice->ReadStream(0, buffer, count);
+        int64_t ret = stdInput->ReadStream(0, buffer, count);
         return ret;
     }
 
@@ -422,7 +422,7 @@ namespace Console {
     }
 
     int Print(const char* format, ...) {
-        if (videoDevice != nullptr) {
+        if (stdOutput != nullptr) {
             va_list args;
             va_start(args, format);
             int ret = Printv(format, args);
@@ -434,7 +434,7 @@ namespace Console {
     }
 
     int Println(const char* format, ...) {
-        if (videoDevice != nullptr) {
+        if (stdOutput != nullptr) {
             va_list args;
             va_start(args, format);
             int ret = Printv(format, args);
@@ -447,34 +447,34 @@ namespace Console {
     }
 
     void SetForegroundColor(uint8_t red, uint8_t green, uint8_t blue) {
-        if (videoDevice != nullptr)
-            videoDevice->Write(FOREGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
+        if (stdOutput != nullptr)
+            stdOutput->Write(FOREGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
     }
 
     void SetBackgroundColor(uint8_t red, uint8_t green, uint8_t blue) {
-        if (videoDevice != nullptr)
-            videoDevice->Write(BACKGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
+        if (stdOutput != nullptr)
+            stdOutput->Write(BACKGROUND_COLOR_ADDRESS, (red << 16) | (green << 8) | blue);
     }
 
     void SetCursorPos(uint32_t x, uint32_t y) {
-        if (videoDevice != nullptr) {
-            videoDevice->Write(CURSOR_X_ADDRESS, x);
-            videoDevice->Write(CURSOR_Y_ADDRESS, y);
+        if (stdOutput != nullptr) {
+            stdOutput->Write(CURSOR_X_ADDRESS, x);
+            stdOutput->Write(CURSOR_Y_ADDRESS, y);
         }
     }
     uint32_t GetCursorX() {
-        if (videoDevice != nullptr) {
+        if (stdOutput != nullptr) {
             uint64_t val;
-            if (videoDevice->Read(CURSOR_X_ADDRESS, &val) == SUCCESS)
+            if (stdOutput->Read(CURSOR_X_ADDRESS, &val) == SUCCESS)
                 return val;
         }
 
         return 0;
     }
     uint32_t GetCursorY() {
-        if (videoDevice != nullptr) {
+        if (stdOutput != nullptr) {
             uint64_t val;
-            if (videoDevice->Read(CURSOR_Y_ADDRESS, &val) == SUCCESS)
+            if (stdOutput->Read(CURSOR_Y_ADDRESS, &val) == SUCCESS)
                 return val;
         }
 
@@ -482,8 +482,8 @@ namespace Console {
     }
 
     void ClearScreen() {
-        if (videoDevice != nullptr)
-            videoDevice->Write(CLEAR_SCREEN_ADDRESS, 0);
+        if (stdOutput != nullptr)
+            stdOutput->Write(CLEAR_SCREEN_ADDRESS, 0);
     }
 } // namespace Console
 

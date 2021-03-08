@@ -1,7 +1,8 @@
 #include <console.h>
+#include <device/manager.h>
 #include <process/control.h>
 
-extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2) {
+extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4) {
     switch (num) {
     case 0:
         Exit(arg1);
@@ -9,16 +10,16 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2) {
             asm volatile("hlt");
 
     case 1:
-        if (arg1 >= KERNEL_VMA)
+        if (arg3 >= KERNEL_VMA)
             break;
 
-        return Console::Print("%s", arg1);
+        return Device::WriteStream(arg1, arg2, (void*)arg3, arg4);
 
     case 2:
-        if (arg1 >= KERNEL_VMA)
+        if (arg3 >= KERNEL_VMA)
             break;
 
-        return Console::Read((void*)arg1, arg2);
+        return Device::ReadStream(arg1, arg2, (void*)arg3, arg4);
 
     case 3:
         if (arg1 >= KERNEL_VMA)

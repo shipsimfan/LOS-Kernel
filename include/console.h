@@ -10,8 +10,8 @@
 #define CLEAR_SCREEN_ADDRESS 0x05
 
 namespace Console {
-    void SetVideoDevice(Device::Device* device);
-    void SetInputDevice(Device::Device* device);
+    void SetStdOutput(Device::Device* device);
+    void SetStdInput(Device::Device* device);
 
     int Print(const char* format, ...);
     int Println(const char* format, ...);

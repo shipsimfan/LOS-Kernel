@@ -240,9 +240,6 @@ PS2Keyboard::PS2Keyboard(PS2Controller* controller, uint64_t port) : Device("PS/
     // Enable scanning
     if (controller->WriteAndWait(port, PS2_DEV_CMD_ENABLE_SCAN) != SUCCESS)
         return;
-
-    // Register keyboard
-    Console::SetInputDevice(this);
 }
 
 int64_t PS2Keyboard::ReadStream(uint64_t address, void* buffer, int64_t count) {

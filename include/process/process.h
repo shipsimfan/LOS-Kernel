@@ -46,6 +46,7 @@ struct Process {
     uint64_t AddDevice(Device::Device* device);
     void RemoveDevice(Device::Device* device);
     void RemoveDevice(uint64_t deviceDescriptor);
+    Device::Device* GetDevice(int deviceDescriptor);
 
     uint64_t AddFile(File* file);
     void RemoveFile(File* file);

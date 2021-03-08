@@ -36,11 +36,10 @@ void InitializeIDEDriver() {
             }
 
             if (devClass == 1 && subClass == 1) {
-                PCIDevice* oldDevice = (PCIDevice*)iter.value;
-                IDEDevice* newDevice = new IDEDevice(oldDevice);
+                IDEDevice* newDevice = new IDEDevice((PCIDevice*)iter.value);
+                Device::UnregisterDevice(iter.value);
                 Device::RegisterDevice(nullptr, newDevice);
-                iter.Remove();
-                delete oldDevice;
+                delete iter.value;
                 return;
             }
         } while (iter.Next());

@@ -13,6 +13,8 @@ namespace Device {
     Device::~Device() {
         childrenMutex.Lock();
 
+        this->name = "DELETED";
+
         while (refCount != 0)
             asm volatile("pause");
 
@@ -61,7 +63,21 @@ namespace Device {
         return count;
     }
 
+    void Device::RemoveChild(Device* child) {
+        if (children.front() == nullptr)
+            return;
+
+        Queue<Device>::Iterator iter(&children);
+        do {
+            if (iter.value == child) {
+                iter.Remove();
+                break;
+            }
+        } while (iter.Next());
+    }
+
     const char* Device::GetName() { return name; }
+    Device* Device::GetParent() { return parent; }
 
     void Device::SetName(const char* newName) {
         delete name;
