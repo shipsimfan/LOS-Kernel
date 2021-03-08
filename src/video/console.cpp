@@ -8,8 +8,10 @@
 
 namespace Console {
     Device::Device* videoDevice = nullptr;
+    Device::Device* inputDevice = nullptr;
 
     void SetVideoDevice(Device::Device* device) { videoDevice = device; }
+    void SetInputDevice(Device::Device* device) { inputDevice = device; }
 
     void DisplayCharacter(char character) {
         if (videoDevice == nullptr)
@@ -23,6 +25,13 @@ namespace Console {
             return 0;
 
         return videoDevice->WriteStream(0, (void*)str, INT32_MAX);
+    }
+
+    int64_t Read(void* buffer, int64_t count) {
+        inputDevice->Open();
+        int64_t ret = inputDevice->ReadStream(0, buffer, count);
+        inputDevice->Close();
+        return ret;
     }
 
     bool IsDigit(char c) { return c >= '0' && c <= '9'; }

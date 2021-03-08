@@ -14,11 +14,11 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2) {
 
         return Console::Print("%s", arg1);
 
-        /*case 2:
-            if (arg1 >= KERNEL_VMA)
-                break;
+    case 2:
+        if (arg1 >= KERNEL_VMA)
+            break;
 
-            return ReadKey((char*)arg1, arg2);*/
+        return Console::Read((void*)arg1, arg2);
 
     case 3:
         if (arg1 >= KERNEL_VMA)

@@ -35,4 +35,12 @@ namespace ACPI {
 
         return table;
     }
+
+    void Shutdown() {
+        AcpiEnterSleepStatePrep(5);
+        asm volatile("cli");
+        AcpiEnterSleepState(5);
+
+        panic("Should have shutdown!");
+    }
 } // namespace ACPI

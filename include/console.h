@@ -11,9 +11,12 @@
 
 namespace Console {
     void SetVideoDevice(Device::Device* device);
+    void SetInputDevice(Device::Device* device);
 
     int Print(const char* format, ...);
     int Println(const char* format, ...);
+
+    int64_t Read(void* buffer, int64_t count);
 
     void SetForegroundColor(uint8_t red, uint8_t green, uint8_t blue);
     void SetBackgroundColor(uint8_t red, uint8_t green, uint8_t blue);

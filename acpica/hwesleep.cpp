@@ -1,6 +1,7 @@
 /******************************************************************************
  *
- * Name: acnames.h - Global names and strings
+ * Name: hwesleep.c - ACPI Hardware Sleep/Wake Support functions for the
+ *                    extended FADT-V5 sleep registers.
  *
  *****************************************************************************/
 
@@ -149,56 +150,189 @@
  *
  *****************************************************************************/
 
-#ifndef __ACNAMES_H__
-#define __ACNAMES_H__
+#include <device/acpi/acpica/accommon.h>
+#include <device/acpi/acpica/acpi.h>
 
-/* Method names - these methods can appear anywhere in the namespace */
+#define _COMPONENT ACPI_HARDWARE
+ACPI_MODULE_NAME("hwesleep")
 
-#define METHOD_NAME__ADR "_ADR"
-#define METHOD_NAME__AEI "_AEI"
-#define METHOD_NAME__BBN "_BBN"
-#define METHOD_NAME__CBA "_CBA"
-#define METHOD_NAME__CID "_CID"
-#define METHOD_NAME__CLS "_CLS"
-#define METHOD_NAME__CRS "_CRS"
-#define METHOD_NAME__DDN "_DDN"
-#define METHOD_NAME__DMA "_DMA"
-#define METHOD_NAME__HID "_HID"
-#define METHOD_NAME__INI "_INI"
-#define METHOD_NAME__PLD "_PLD"
-#define METHOD_NAME__DSD "_DSD"
-#define METHOD_NAME__PRS "_PRS"
-#define METHOD_NAME__PRT "_PRT"
-#define METHOD_NAME__PRW "_PRW"
-#define METHOD_NAME__PS0 "_PS0"
-#define METHOD_NAME__PS1 "_PS1"
-#define METHOD_NAME__PS2 "_PS2"
-#define METHOD_NAME__PS3 "_PS3"
-#define METHOD_NAME__REG "_REG"
-#define METHOD_NAME__SB_ "_SB_"
-#define METHOD_NAME__SEG "_SEG"
-#define METHOD_NAME__SRS "_SRS"
-#define METHOD_NAME__STA "_STA"
-#define METHOD_NAME__SUB "_SUB"
-#define METHOD_NAME__UID "_UID"
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiHwExecuteSleepMethod
+ *
+ * PARAMETERS:  MethodPathname      - Pathname of method to execute
+ *              IntegerArgument     - Argument to pass to the method
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Execute a sleep/wake related method with one integer argument
+ *              and no return value.
+ *
+ ******************************************************************************/
 
-/* Method names - these methods must appear at the namespace root */
+void AcpiHwExecuteSleepMethod(char* MethodPathname, UINT32 IntegerArgument) {
+    ACPI_OBJECT_LIST ArgList;
+    ACPI_OBJECT Arg;
+    ACPI_STATUS Status;
 
-#define METHOD_PATHNAME__PTS (char*)"\\_PTS"
-#define METHOD_PATHNAME__SST (char*)"\\_SI._SST"
-#define METHOD_PATHNAME__WAK (char*)"\\_WAK"
+    ACPI_FUNCTION_TRACE(HwExecuteSleepMethod);
 
-/* Definitions of the predefined namespace names  */
+    /* One argument, IntegerArgument; No return value expected */
 
-#define ACPI_UNKNOWN_NAME (UINT32)0x3F3F3F3F /* Unknown name is "????" */
-#define ACPI_PREFIX_MIXED (UINT32)0x69706341 /* "Acpi" */
-#define ACPI_PREFIX_LOWER (UINT32)0x69706361 /* "acpi" */
+    ArgList.Count = 1;
+    ArgList.Pointer = &Arg;
+    Arg.Type = ACPI_TYPE_INTEGER;
+    Arg.Integer.Value = (UINT64)IntegerArgument;
 
-/* Root name stuff */
+    Status = AcpiEvaluateObject(NULL, MethodPathname, &ArgList, NULL);
+    if (ACPI_FAILURE(Status) && Status != AE_NOT_FOUND) {
+        ACPI_EXCEPTION((AE_INFO, Status, "While executing method %s", MethodPathname));
+    }
 
-#define ACPI_ROOT_NAME (UINT32)0x5F5F5F5C /* Root name is    "\___" */
-#define ACPI_ROOT_PATHNAME "\\___"
-#define ACPI_NAMESPACE_ROOT "Namespace Root"
-#define ACPI_NS_ROOT_PATH "\\"
+    return_VOID;
+}
 
-#endif /* __ACNAMES_H__  */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiHwExtendedSleep
+ *
+ * PARAMETERS:  SleepState          - Which sleep state to enter
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enter a system sleep state via the extended FADT sleep
+ *              registers (V5 FADT).
+ *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwExtendedSleep(UINT8 SleepState) {
+    ACPI_STATUS Status;
+    UINT8 SleepControl;
+    UINT64 SleepStatus;
+
+    ACPI_FUNCTION_TRACE(HwExtendedSleep);
+
+    /* Extended sleep registers must be valid */
+
+    if (!AcpiGbl_FADT.SleepControl.Address || !AcpiGbl_FADT.SleepStatus.Address) {
+        return_ACPI_STATUS(AE_NOT_EXIST);
+    }
+
+    /* Clear wake status (WAK_STS) */
+
+    Status = AcpiWrite((UINT64)ACPI_X_WAKE_STATUS, &AcpiGbl_FADT.SleepStatus);
+    if (ACPI_FAILURE(Status)) {
+        return_ACPI_STATUS(Status);
+    }
+
+    AcpiGbl_SystemAwakeAndRunning = FALSE;
+
+    /*
+     * Set the SLP_TYP and SLP_EN bits.
+     *
+     * Note: We only use the first value returned by the \_Sx method
+     * (AcpiGbl_SleepTypeA) - As per ACPI specification.
+     */
+    ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Entering sleep state [S%u]\n", SleepState));
+
+    SleepControl = ((AcpiGbl_SleepTypeA << ACPI_X_SLEEP_TYPE_POSITION) & ACPI_X_SLEEP_TYPE_MASK) | ACPI_X_SLEEP_ENABLE;
+
+    /* Flush caches, as per ACPI specification */
+
+    ACPI_FLUSH_CPU_CACHE();
+
+    Status = AcpiOsEnterSleep(SleepState, SleepControl, 0);
+    if (Status == AE_CTRL_TERMINATE) {
+        return_ACPI_STATUS(AE_OK);
+    }
+    if (ACPI_FAILURE(Status)) {
+        return_ACPI_STATUS(Status);
+    }
+
+    Status = AcpiWrite((UINT64)SleepControl, &AcpiGbl_FADT.SleepControl);
+    if (ACPI_FAILURE(Status)) {
+        return_ACPI_STATUS(Status);
+    }
+
+    /* Wait for transition back to Working State */
+
+    do {
+        Status = AcpiRead(&SleepStatus, &AcpiGbl_FADT.SleepStatus);
+        if (ACPI_FAILURE(Status)) {
+            return_ACPI_STATUS(Status);
+        }
+
+    } while (!(((UINT8)SleepStatus) & ACPI_X_WAKE_STATUS));
+
+    return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiHwExtendedWakePrep
+ *
+ * PARAMETERS:  SleepState          - Which sleep state we just exited
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Perform first part of OS-independent ACPI cleanup after
+ *              a sleep. Called with interrupts ENABLED.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwExtendedWakePrep(UINT8 SleepState) {
+    ACPI_STATUS Status;
+    UINT8 SleepTypeValue;
+
+    ACPI_FUNCTION_TRACE(HwExtendedWakePrep);
+
+    Status = AcpiGetSleepTypeData(ACPI_STATE_S0, &AcpiGbl_SleepTypeA, &AcpiGbl_SleepTypeB);
+    if (ACPI_SUCCESS(Status)) {
+        SleepTypeValue = ((AcpiGbl_SleepTypeA << ACPI_X_SLEEP_TYPE_POSITION) & ACPI_X_SLEEP_TYPE_MASK);
+
+        (void)AcpiWrite((UINT64)(SleepTypeValue | ACPI_X_SLEEP_ENABLE), &AcpiGbl_FADT.SleepControl);
+    }
+
+    return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiHwExtendedWake
+ *
+ * PARAMETERS:  SleepState          - Which sleep state we just exited
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Perform OS-independent ACPI cleanup after a sleep
+ *              Called with interrupts ENABLED.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwExtendedWake(UINT8 SleepState) {
+    ACPI_FUNCTION_TRACE(HwExtendedWake);
+
+    /* Ensure EnterSleepStatePrep -> EnterSleepState ordering */
+
+    AcpiGbl_SleepTypeA = ACPI_SLEEP_TYPE_INVALID;
+
+    /* Execute the wake methods */
+
+    AcpiHwExecuteSleepMethod(METHOD_PATHNAME__SST, ACPI_SST_WAKING);
+    AcpiHwExecuteSleepMethod(METHOD_PATHNAME__WAK, SleepState);
+
+    /*
+     * Some BIOS code assumes that WAK_STS will be cleared on resume
+     * and use it to determine whether the system is rebooting or
+     * resuming. Clear WAK_STS for compatibility.
+     */
+    (void)AcpiWrite((UINT64)ACPI_X_WAKE_STATUS, &AcpiGbl_FADT.SleepStatus);
+    AcpiGbl_SystemAwakeAndRunning = TRUE;
+
+    AcpiHwExecuteSleepMethod(METHOD_PATHNAME__SST, ACPI_SST_WORKING);
+    return_ACPI_STATUS(AE_OK);
+}

@@ -1,17 +1,19 @@
 #pragma once
 
 #include <device/device.h>
-#include <device/drivers/pci.h>
 
-class ATAPIDevice;
+class PS2Keyboard;
 
-class IDEDevice : public Device::Device {
-    friend ATAPIDevice;
+class PS2Controller : public Device::Device {
+    friend PS2Keyboard;
 
 public:
-    IDEDevice(PCIDevice* pciDevice);
+    PS2Controller();
 
-protected:
+private:
+    static void FirstPortIRQ(void* context);
+    static void SecondPortIRQ(void* context);
+
     uint64_t OnOpen() override;
     uint64_t OnClose() override;
 
@@ -21,26 +23,20 @@ protected:
     uint64_t DoWrite(uint64_t address, uint64_t value) override;
     uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) override;
 
-private:
-    void WaitIRQ();
-    static void IRQHandler(void* context);
+    uint64_t WriteAndWait(uint64_t port, uint8_t data);
 
-    struct {
-        uint16_t IO;
-        uint16_t control;
-        uint16_t busMaster;
-        uint8_t nIEN;
-        Device* drives[2];
-    } channels[2];
+    void IdentPort(uint64_t port);
 
-    bool irq;
+    bool portExists[2];
+    bool portIRQ[2];
+    uint8_t portData[2];
 };
 
-class ATAPIDevice : public Device::Device {
+class PS2Keyboard : public Device::Device {
 public:
-    ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive);
+    PS2Keyboard(PS2Controller* controller, uint64_t port);
 
-protected:
+private:
     uint64_t OnOpen() override;
     uint64_t OnClose() override;
 
@@ -50,18 +46,8 @@ protected:
     uint64_t DoWrite(uint64_t address, uint64_t value) override;
     uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) override;
 
-private:
-    bool Polling(bool advancedCheck);
-
-    IDEDevice* ide;
-    uint8_t channel;
-    uint8_t drive;
-
-    uint16_t sign;
-    uint16_t capabilities;
-    uint32_t commandSets;
-
-    int64_t size;
+    PS2Controller* controller;
+    uint64_t port;
 };
 
-void InitializeIDEDriver();
+void InitializePS2Driver();

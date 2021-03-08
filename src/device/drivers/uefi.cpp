@@ -2,6 +2,7 @@
 
 #include <bootloader.h>
 #include <console.h>
+#include <device/manager.h>
 #include <errno.h>
 
 extern uint8_t font[];
@@ -164,4 +165,10 @@ void UEFIVideoDevice::ClearScreen() {
 
     cursorX = 0;
     cursorY = 1;
+}
+
+void InitializeUEFIVideoDriver() {
+    UEFIVideoDevice* videoDevice = new UEFIVideoDevice;
+    Device::RegisterDevice(nullptr, videoDevice);
+    Console::SetVideoDevice(videoDevice);
 }

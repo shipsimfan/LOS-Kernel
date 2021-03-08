@@ -52,7 +52,7 @@ void InitializeIDEDriver() {
     }
 }
 
-IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::IDE_CONTROLLER), irq(false) {
+IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::CONTROLLER), irq(false) {
     // Save the address
     uint64_t value;
     pciDevice->Open();
@@ -265,7 +265,7 @@ void IDEDevice::IRQHandler(void* context) {
     ide->irq = true;
 }
 
-ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Device("", Type::ATA_DRIVE), ide(ide), channel(channel), drive(drive) {
+ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Device("", Type::CD_DRIVE), ide(ide), channel(channel), drive(drive) {
     this->Open();
     ide->Open();
 

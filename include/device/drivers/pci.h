@@ -2,8 +2,6 @@
 
 #include <device/device.h>
 
-void InitializePCIDriver();
-
 class PCIDevice : public Device::Device {
 public:
     PCIDevice(uint8_t bus, uint8_t device, uint8_t function);
@@ -23,3 +21,5 @@ private:
     uint8_t device;
     uint8_t function;
 };
+
+void InitializePCIDriver();

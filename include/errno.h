@@ -5,6 +5,8 @@
 // Standard Errors
 #define SUCCESS 0x00
 
+#define ERROR_TIMEOUT 0x01
+
 // Programmer Errors
 #define ERROR_BAD_PARAMETER 0x01
 #define ERROR_NOT_IMPLEMENTED 0x02

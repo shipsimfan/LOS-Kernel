@@ -4,6 +4,7 @@
 
 #define MADT_SIGNATURE "APIC"
 #define HPET_SIGNATURE "HPET"
+#define FADT_SIGNATURE "FACP"
 
 namespace ACPI {
 #pragma pack(push)
@@ -86,7 +87,61 @@ namespace ACPI {
         uint8_t pageProtection;
     };
 
+    struct FADT : public TableHeader {
+        uint32_t firmwareControl;
+        uint32_t dsdt;
+        uint8_t reserved;
+        uint8_t preferredPowerManagementProfile;
+        uint16_t SCIInterrupt;
+        uint32_t SMICommandPort;
+        uint8_t ACPIEnable;
+        uint8_t ACPIDisable;
+        uint8_t S4BIOSREQ;
+        uint8_t PSTATEControl;
+        uint32_t PM1aEventBlock;
+        uint32_t PM1bEventBlock;
+        uint32_t PM1aControlBlock;
+        uint32_t PM1bControlBlock;
+        uint32_t PM2ControlBlock;
+        uint32_t PMTimerBlock;
+        uint32_t GPE0Block;
+        uint32_t GPE1Block;
+        uint8_t PM1EventLength;
+        uint8_t PM1ControlLength;
+        uint8_t PM2ControlLength;
+        uint8_t PMTimerLength;
+        uint8_t GPE0Length;
+        uint8_t GPE1Length;
+        uint8_t CStateControl;
+        uint16_t worstC2Latency;
+        uint16_t worstC3Latency;
+        uint16_t flushSize;
+        uint16_t flushStride;
+        uint8_t dutyOffset;
+        uint8_t dutyWidth;
+        uint8_t dayAlarm;
+        uint8_t monthAlarm;
+        uint8_t century;
+        uint16_t bootArchitectureFlags;
+        uint8_t reserved2;
+        uint32_t flags;
+        AddressStructure resetReg;
+        uint8_t resetValue;
+        uint8_t reserved3[3];
+        uint64_t xFirmwareControl;
+        uint64_t xDSDT;
+        AddressStructure xPM1AEventBlock;
+        AddressStructure xPM1BEventBlock;
+        AddressStructure xPM1AControlBlock;
+        AddressStructure xPM2ControlBlock;
+        AddressStructure xPMTimerBlock;
+        AddressStructure xGPE0Block;
+        AddressStructure xGPE1Block;
+    };
+
 #pragma pack(pop)
 
     TableHeader* GetTable(const char* tableSignature);
+
+    void Shutdown();
 } // namespace ACPI

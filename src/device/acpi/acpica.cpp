@@ -33,6 +33,8 @@ ACPI_STATUS AcpiOsPredefinedOverride(const ACPI_PREDEFINED_NAMES* InitVal, ACPI_
     return AE_OK;
 }
 
+ACPI_STATUS AcpiOsEnterSleep(UINT8 sleepState, UINT32 regaValue, UINT32 regbValue) { return AE_OK; }
+
 // Synchronization Fucntions
 ACPI_THREAD_ID AcpiOsGetThreadId() {
     if (currentProcess == nullptr)
