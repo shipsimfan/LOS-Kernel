@@ -7,15 +7,10 @@ public:
     UEFIVideoDevice();
     ~UEFIVideoDevice();
 
-protected:
-    uint64_t OnOpen() override;
-    uint64_t OnClose() override;
+    uint64_t Read(uint64_t address, uint64_t* value) override;
 
-    uint64_t DoRead(uint64_t address, uint64_t* value) override;
-    uint64_t DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) override;
-
-    uint64_t DoWrite(uint64_t address, uint64_t value) override;
-    uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) override;
+    uint64_t Write(uint64_t address, uint64_t value) override;
+    int64_t WriteStream(uint64_t address, void* buffer, int64_t count) override;
 
 private:
     void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel);

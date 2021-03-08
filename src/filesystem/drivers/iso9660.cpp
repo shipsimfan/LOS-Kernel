@@ -11,20 +11,16 @@ ISO9660Driver isoDriver;
 void InitializeISO9660() { RegisterFilesystemDriver(&isoDriver); }
 
 int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA, int64_t size) {
-    drive->Open();
-
     // Look for 'CD001' signature of ISO 9660 volume descriptor
     uint8_t* sector = new uint8_t[2048];
     int64_t bytesRead = drive->ReadStream(startLBA + 0x10, sector, 2048);
     if (bytesRead < 0) {
-        drive->Close();
         delete sector;
         return -1; // Drive error
     }
 
     if (memcmp(sector + 1, "CD001", 5)) {
         delete sector;
-        drive->Close();
         return 1; // Not an ISO 9660 filesystem
     }
 
@@ -37,7 +33,6 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
         bytesRead = drive->ReadStream(lba, sector, 2048);
         if (bytesRead < 0) {
             delete sector;
-            drive->Close();
             return -1;
         }
 
@@ -55,7 +50,6 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
         if (sector[0] == 0xFF) {
             delete sector;
             errno = ISO9660_ERROR_NO_PRIMARY_VOLUME_DESCRIPTOR;
-            drive->Close();
             return -1;
         }
 
@@ -88,18 +82,15 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     bytesRead = drive->ReadStream(rootLBA, rootEntry, rootLength);
     if (bytesRead < 0) {
         delete rootEntry;
-        drive->Close();
         return -1;
     }
 
     if (!SetupDirectory(filesystem, rootDirectory, rootEntry, rootLength)) {
         delete rootEntry;
-        drive->Close();
         return -1;
     }
 
     delete rootEntry;
-    drive->Close();
 
     RegisterFilesystem(filesystem);
 
@@ -196,9 +187,7 @@ int64_t ISO9660Driver::Read(File* file, int64_t offset, void* buffer, int64_t co
     int64_t bufToUseSize = readEnd - readStart;
     uint8_t* bufToUse = new uint8_t[bufToUseSize];
 
-    file->GetFilesystem()->GetDrive()->Open();
     int64_t ret = file->GetFilesystem()->Read(isoFile->entryLBA + (readStart / 2048), bufToUse, bufToUseSize);
-    file->GetFilesystem()->GetDrive()->Close();
     if (ret < 0)
         return -1;
 

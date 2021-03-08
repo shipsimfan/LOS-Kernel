@@ -76,7 +76,6 @@ void CheckPCIFunction(uint8_t bus, uint8_t device, uint8_t function) {
     Device::RegisterDevice(nullptr, newDevice);
 
     uint64_t devClass, subClass;
-    newDevice->Open();
     if (newDevice->Read(PCI_CONFIG_CLASS, &devClass) != SUCCESS) {
         delete newDevice;
         return;
@@ -85,7 +84,6 @@ void CheckPCIFunction(uint8_t bus, uint8_t device, uint8_t function) {
         delete newDevice;
         return;
     }
-    newDevice->Close();
 
     Console::Println("[ PCI ] New device (%#X - %#X)", (uint8_t)devClass, (uint8_t)subClass);
 
@@ -132,10 +130,7 @@ void InitializePCIDriver() {
 
 PCIDevice::PCIDevice(uint8_t bus, uint8_t device, uint8_t function) : Device("PCI Device", Type::PCI_DEVICE), bus(bus), device(device), function(function) {}
 
-uint64_t PCIDevice::OnOpen() { return SUCCESS; }
-uint64_t PCIDevice::OnClose() { return SUCCESS; }
-
-uint64_t PCIDevice::DoRead(uint64_t address, uint64_t* value) {
+uint64_t PCIDevice::Read(uint64_t address, uint64_t* value) {
     switch (address) {
     case PCI_CONFIG_CLASS:
     case PCI_CONFIG_SUB_CLASS:
@@ -169,9 +164,7 @@ uint64_t PCIDevice::DoRead(uint64_t address, uint64_t* value) {
     }
 }
 
-uint64_t PCIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) { return ERROR_NOT_IMPLEMENTED; }
-
-uint64_t PCIDevice::DoWrite(uint64_t address, uint64_t value) {
+uint64_t PCIDevice::Write(uint64_t address, uint64_t value) {
     switch (address) {
     case PCI_CONFIG_CLASS:
     case PCI_CONFIG_SUB_CLASS:
@@ -204,4 +197,3 @@ uint64_t PCIDevice::DoWrite(uint64_t address, uint64_t value) {
         return ERROR_BAD_PARAMETER;
     }
 }
-uint64_t PCIDevice::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }

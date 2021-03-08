@@ -11,15 +11,10 @@ class IDEDevice : public Device::Device {
 public:
     IDEDevice(PCIDevice* pciDevice);
 
-protected:
-    uint64_t OnOpen() override;
-    uint64_t OnClose() override;
+    uint64_t Read(uint64_t address, uint64_t* value) override;
+    int64_t ReadStream(uint64_t address, void* buffer, int64_t count) override;
 
-    uint64_t DoRead(uint64_t address, uint64_t* value) override;
-    uint64_t DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) override;
-
-    uint64_t DoWrite(uint64_t address, uint64_t value) override;
-    uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) override;
+    uint64_t Write(uint64_t address, uint64_t value) override;
 
 private:
     void WaitIRQ();
@@ -31,6 +26,7 @@ private:
         uint16_t busMaster;
         uint8_t nIEN;
         Device* drives[2];
+        Mutex mutex;
     } channels[2];
 
     bool irq;
@@ -40,15 +36,10 @@ class ATAPIDevice : public Device::Device {
 public:
     ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive);
 
-protected:
-    uint64_t OnOpen() override;
-    uint64_t OnClose() override;
+    uint64_t Read(uint64_t address, uint64_t* value) override;
+    int64_t ReadStream(uint64_t address, void* buffer, int64_t count) override;
 
-    uint64_t DoRead(uint64_t address, uint64_t* value) override;
-    uint64_t DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) override;
-
-    uint64_t DoWrite(uint64_t address, uint64_t value) override;
-    uint64_t DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) override;
+    uint64_t Write(uint64_t address, uint64_t value) override;
 
 private:
     bool Polling(bool advancedCheck);

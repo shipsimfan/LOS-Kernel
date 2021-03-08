@@ -14,8 +14,6 @@ PS2Controller::PS2Controller() : Device("PS/2 Controller", Type::CONTROLLER), po
     Interrupt::InstallIRQHandler(1, FirstPortIRQ, this);
     Interrupt::InstallIRQHandler(12, SecondPortIRQ, this);
 
-    this->Open();
-
     // Disable devices for initialization
     WriteCommand(PS2_CMD_DISABLE_FIRST_PORT);
     WriteCommand(PS2_CMD_DISABLE_SECOND_PORT);
@@ -93,8 +91,6 @@ PS2Controller::PS2Controller() : Device("PS/2 Controller", Type::CONTROLLER), po
 
     if (portExists[1])
         IdentPort(1);
-
-    this->Close();
 }
 
 void PS2Controller::FirstPortIRQ(void* context) {
@@ -119,10 +115,7 @@ void PS2Controller::SecondPortIRQ(void* context) {
     controller->portIRQ[1] = true;
 }
 
-uint64_t PS2Controller::OnOpen() { return SUCCESS; }
-uint64_t PS2Controller::OnClose() { return SUCCESS; }
-
-uint64_t PS2Controller::DoWrite(uint64_t address, uint64_t value) {
+uint64_t PS2Controller::Write(uint64_t address, uint64_t value) {
     if (address > 1)
         return ERROR_BAD_PARAMETER;
 
@@ -143,10 +136,6 @@ uint64_t PS2Controller::DoWrite(uint64_t address, uint64_t value) {
 
     return SUCCESS;
 }
-
-uint64_t PS2Controller::DoRead(uint64_t address, uint64_t* value) { return ERROR_NOT_IMPLEMENTED; }
-uint64_t PS2Controller::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) { return ERROR_NOT_IMPLEMENTED; }
-uint64_t PS2Controller::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }
 
 void PS2Controller::IdentPort(uint64_t port) {
     // Reset device
@@ -214,9 +203,7 @@ void PS2Controller::IdentPort(uint64_t port) {
     if (len == 0) {
         // Create PS/2 keyboard device
         PS2Keyboard* newKeyboard = new PS2Keyboard(this, port);
-        this->Close();
         RegisterDevice(this, newKeyboard);
-        this->Open();
     } else {
         Console::Print("[ PS2 ] Unknown device on port %i (%#X", port, ident[0]);
         if (len == 2)
@@ -244,34 +231,24 @@ uint64_t PS2Controller::WriteAndWait(uint64_t port, uint8_t data) {
 }
 
 PS2Keyboard::PS2Keyboard(PS2Controller* controller, uint64_t port) : Device("PS/2 Keyboard", Type::KEYBOARD), controller(controller), port(port) {
-    this->Open();
-
     // Set scancode set to 2
     if (controller->WriteAndWait(port, 0xF0) != SUCCESS)
         return;
 
     outb(PS2_REG_DATA, 2);
 
+    // Enable scanning
+    if (controller->WriteAndWait(port, PS2_DEV_CMD_ENABLE_SCAN) != SUCCESS)
+        return;
+
     // Register keyboard
     Console::SetInputDevice(this);
-
-    this->Close();
 }
 
-uint64_t PS2Keyboard::OnOpen() { return SUCCESS; }
-uint64_t PS2Keyboard::OnClose() { return SUCCESS; }
-
-uint64_t PS2Keyboard::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) {
-    // Lock controller
-    controller->Open();
-
-    // Enable scanning
-    uint64_t status = controller->WriteAndWait(port, PS2_DEV_CMD_ENABLE_SCAN);
-    if (status != SUCCESS)
-        return status;
-
-    // Read from keyboard
+int64_t PS2Keyboard::ReadStream(uint64_t address, void* buffer, int64_t count) {
+    mutex.Lock();
     uint8_t* buf = (uint8_t*)buffer;
+    int64_t countRead;
     for (countRead = 0; countRead < count; countRead++) {
         controller->portIRQ[port] = false;
         while (!controller->portIRQ[port])
@@ -280,8 +257,8 @@ uint64_t PS2Keyboard::DoReadStream(uint64_t address, void* buffer, int64_t count
         // Enter key
         if (controller->portData[port] == 0x5A) {
             buf[countRead] = 0;
-            controller->Close();
-            return SUCCESS;
+            mutex.Unlock();
+            return countRead;
         }
 
         if (controller->portData[port] > 0x55) {
@@ -298,19 +275,11 @@ uint64_t PS2Keyboard::DoReadStream(uint64_t address, void* buffer, int64_t count
         buf[countRead] = scancodeToChar[controller->portData[port]];
     }
 
-    // Disable Scanning
-    status = controller->WriteAndWait(port, PS2_DEV_CMD_DISABLE_SCAN);
-    if (status != SUCCESS)
-        return status;
+    buf[count - 1] = 0;
+    mutex.Unlock();
 
-    controller->Close();
-
-    return SUCCESS;
+    return countRead;
 }
-
-uint64_t PS2Keyboard::DoRead(uint64_t address, uint64_t* value) { return ERROR_NOT_IMPLEMENTED; }
-uint64_t PS2Keyboard::DoWrite(uint64_t address, uint64_t value) { return ERROR_NOT_IMPLEMENTED; }
-uint64_t PS2Keyboard::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }
 
 void InitializePS2Driver() {
     // Determine if PS/2 controller exists

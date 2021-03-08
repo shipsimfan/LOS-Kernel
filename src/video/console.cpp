@@ -28,9 +28,7 @@ namespace Console {
     }
 
     int64_t Read(void* buffer, int64_t count) {
-        inputDevice->Open();
         int64_t ret = inputDevice->ReadStream(0, buffer, count);
-        inputDevice->Close();
         return ret;
     }
 
@@ -427,9 +425,7 @@ namespace Console {
         if (videoDevice != nullptr) {
             va_list args;
             va_start(args, format);
-            videoDevice->Open();
             int ret = Printv(format, args);
-            videoDevice->Close();
             va_end(args);
             return ret;
         }
@@ -441,11 +437,9 @@ namespace Console {
         if (videoDevice != nullptr) {
             va_list args;
             va_start(args, format);
-            videoDevice->Open();
             int ret = Printv(format, args);
             va_end(args);
             DisplayCharacter('\n');
-            videoDevice->Close();
             return ret + 1;
         }
 
@@ -501,9 +495,7 @@ void panic(const char* format, ...) {
 
     va_list args;
     va_start(args, format);
-    Console::videoDevice->Open();
     Console::Printv(format, args);
-    Console::videoDevice->Close();
     va_end(args);
 
     while (1)

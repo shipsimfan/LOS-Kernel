@@ -21,9 +21,7 @@ void InitializeIDEDriver() {
         Queue<Device::Device>::Iterator iter(&queue);
         do {
             uint64_t devClass, subClass;
-            iter.value->Open();
             if (iter.value->Read(PCI_CONFIG_CLASS, &devClass) != SUCCESS) {
-                iter.value->Close();
                 Console::SetForegroundColor(0xFF, 0x00, 0x00);
                 Console::Println("Failed to read PCI device class!");
                 Console::SetForegroundColor(0xFF, 0xFF, 0xFF);
@@ -31,14 +29,11 @@ void InitializeIDEDriver() {
             }
 
             if (iter.value->Read(PCI_CONFIG_SUB_CLASS, &subClass) != SUCCESS) {
-                iter.value->Close();
                 Console::SetForegroundColor(0xFF, 0x00, 0x00);
                 Console::Println("Failed to read PCI device sub class!");
                 Console::SetForegroundColor(0xFF, 0xFF, 0xFF);
                 continue;
             }
-
-            iter.value->Close();
 
             if (devClass == 1 && subClass == 1) {
                 PCIDevice* oldDevice = (PCIDevice*)iter.value;
@@ -55,7 +50,6 @@ void InitializeIDEDriver() {
 IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::CONTROLLER), irq(false) {
     // Save the address
     uint64_t value;
-    pciDevice->Open();
     if (pciDevice->Read(PCI_CONFIG_BAR_0, &value) != SUCCESS)
         return;
     channels[ATA_PRIMARY].IO = value;
@@ -76,7 +70,6 @@ IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::CONT
         return;
     channels[ATA_PRIMARY].busMaster = value;
     channels[ATA_SECONDARY].busMaster = value + 8;
-    pciDevice->Close();
 
     // Correct address
     if (channels[ATA_PRIMARY].IO <= 1)
@@ -95,7 +88,8 @@ IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::CONT
     Interrupt::InstallIRQHandler(14, IRQHandler, this);
     Interrupt::InstallIRQHandler(15, IRQHandler, this);
 
-    this->Open();
+    channels[0].mutex.Lock();
+    channels[1].mutex.Lock();
 
     // Disable IRQs
     if (Write(ATA_PRIMARY_REG(ATA_REG_CONTROL), 2) != SUCCESS)
@@ -168,21 +162,19 @@ IDEDevice::IDEDevice(PCIDevice* pciDevice) : Device("IDE Controller", Type::CONT
             if (type == IDE_ATA)
                 Console::Println("[ IDE ] Found ATA drive. Only ATAPI is currently supported.");
             else {
-                this->Close();
+                channels[i].mutex.Unlock();
                 channels[i].drives[j] = new ATAPIDevice(this, i, j);
+                channels[i].mutex.Lock();
                 RegisterDevice(this, channels[i].drives[j]);
-                this->Open();
             }
         }
     }
 
-    this->Close();
+    channels[0].mutex.Unlock();
+    channels[1].mutex.Unlock();
 }
 
-uint64_t IDEDevice::OnOpen() { return SUCCESS; }
-uint64_t IDEDevice::OnClose() { return SUCCESS; }
-
-uint64_t IDEDevice::DoRead(uint64_t address, uint64_t* value) {
+uint64_t IDEDevice::Read(uint64_t address, uint64_t* value) {
     uint8_t reg = address & 0xFF;
     uint8_t channel = (address >> 8) & 1;
 
@@ -210,9 +202,11 @@ uint64_t IDEDevice::DoRead(uint64_t address, uint64_t* value) {
     return SUCCESS;
 }
 
-uint64_t IDEDevice::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) {
-    if (count < 0)
-        return ERROR_BAD_PARAMETER;
+int64_t IDEDevice::ReadStream(uint64_t address, void* buffer, int64_t count) {
+    if (count < 0) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
 
     int64_t quads = count / 4;
     uint32_t* dBuffer = (uint32_t*)buffer;
@@ -220,11 +214,10 @@ uint64_t IDEDevice::DoReadStream(uint64_t address, void* buffer, int64_t count, 
     for (int64_t i = 0; i < quads; i++)
         dBuffer[i] = ind(channels[address].IO + ATA_REG_DATA);
 
-    countRead = quads * 4;
-    return SUCCESS;
+    return quads * 4;
 }
 
-uint64_t IDEDevice::DoWrite(uint64_t address, uint64_t value) {
+uint64_t IDEDevice::Write(uint64_t address, uint64_t value) {
     uint8_t reg = address & 0xFF;
     uint8_t channel = (address >> 8) & 1;
 
@@ -252,8 +245,6 @@ uint64_t IDEDevice::DoWrite(uint64_t address, uint64_t value) {
     return SUCCESS;
 }
 
-uint64_t IDEDevice::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }
-
 void IDEDevice::WaitIRQ() {
     while (!irq)
         ;
@@ -266,13 +257,13 @@ void IDEDevice::IRQHandler(void* context) {
 }
 
 ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Device("", Type::CD_DRIVE), ide(ide), channel(channel), drive(drive) {
-    this->Open();
-    ide->Open();
-
+    ide->channels[channel].mutex.Lock();
     // Read Identification Space
     uint8_t buffer[512];
-    if (ide->ReadStream(channel, buffer, 512) < 0)
+    if (ide->ReadStream(channel, buffer, 512) < 0) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
     // Read device parameters
     sign = *((uint16_t*)(buffer + ATA_IDENT_DEVICETYPE));
@@ -281,15 +272,21 @@ ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Devic
 
     // Get Size
     // Select PIO Mode
-    if (Write(ATA_REG_FEATURES, 0) != SUCCESS)
+    if (Write(ATA_REG_FEATURES, 0) != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
     // Set buffer size
-    if (Write(ATA_REG_LBA1, 0x08) != SUCCESS)
+    if (Write(ATA_REG_LBA1, 0x08) != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
-    if (Write(ATA_REG_LBA2, 0x00) != SUCCESS)
+    if (Write(ATA_REG_LBA2, 0x00) != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
     // Setup SCSI packet
     uint8_t packet[12];
@@ -300,20 +297,24 @@ ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Devic
     Write(ATA_REG_COMMAND, ATA_CMD_PACKET);
 
     // Wait
-    if (!Polling(true))
+    if (!Polling(true)) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
     asm("rep outsw" ::"c"(6), "d"(ide->channels[channel].IO), "S"(packet));
 
-    if (!Polling(true))
+    if (!Polling(true)) {
+        ide->channels[channel].mutex.Unlock();
         return;
+    }
 
     uint32_t lba = (uint32_t)inw(ide->channels[channel].IO) << 16;
     lba |= inw(ide->channels[channel].IO);
     uint32_t blockSize = (uint32_t)inw(ide->channels[channel].IO) << 16;
     blockSize |= inw(ide->channels[channel].IO);
 
-    ide->Close();
+    ide->channels[channel].mutex.Unlock();
 
     lba++;
 
@@ -330,33 +331,32 @@ ATAPIDevice::ATAPIDevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Devic
     SetName(newName);
     delete newName;
 
-    this->Close();
-
     // Register drive
     Console::Println("[ IDE ] New ATAPI Drive (%i MB) - %s", size / 1024 / 1024, GetName());
     RegisterDrive(this, size);
 }
 
-uint64_t ATAPIDevice::OnOpen() { return SUCCESS; }
-uint64_t ATAPIDevice::OnClose() { return SUCCESS; }
+uint64_t ATAPIDevice::Read(uint64_t address, uint64_t* value) { return ide->Read((channel << 8) | address, value); }
+uint64_t ATAPIDevice::Write(uint64_t address, uint64_t value) { return ide->Write((channel << 8) | address, value); }
 
-uint64_t ATAPIDevice::DoRead(uint64_t address, uint64_t* value) { return ide->Read((channel << 8) | address, value); }
-uint64_t ATAPIDevice::DoWrite(uint64_t address, uint64_t value) { return ide->Write((channel << 8) | address, value); }
+int64_t ATAPIDevice::ReadStream(uint64_t address, void* buffer, int64_t count) {
+    if (count < 0) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
 
-uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) {
-    if (count < 0)
-        return ERROR_BAD_PARAMETER;
-
-    if (count > size / ATAPI_SECTOR_SIZE)
-        return ERROR_OUT_OF_RANGE;
+    if (count > size / ATAPI_SECTOR_SIZE) {
+        errno = ERROR_OUT_OF_RANGE;
+        return -1;
+    }
 
     // Lock the IDE Device
-    ide->Open();
+    ide->channels[channel].mutex.Lock();
 
     // Select Drive
     uint64_t status = Write(ATA_REG_HDDEVSEL, drive << 4);
     if (status != SUCCESS) {
-        ide->Close();
+        ide->channels[channel].mutex.Unlock();
         return status;
     }
     Sleep(2);
@@ -364,27 +364,27 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
     // Enable IRQs
     status = Write(ATA_REG_CONTROL, ide->channels[channel].nIEN = 0);
     if (status != SUCCESS) {
-        ide->Close();
+        ide->channels[channel].mutex.Unlock();
         return status;
     }
 
     // Select PIO Mode
     status = Write(ATA_REG_FEATURES, 0);
     if (status != SUCCESS) {
-        ide->Close();
+        ide->channels[channel].mutex.Unlock();
         return status;
     }
 
     // Set buffer size
     status = Write(ATA_REG_LBA1, ATAPI_SECTOR_SIZE & 0xFF);
     if (status != SUCCESS) {
-        ide->Close();
+        ide->channels[channel].mutex.Unlock();
         return status;
     }
 
     status = Write(ATA_REG_LBA2, ATAPI_SECTOR_SIZE >> 8);
     if (status != SUCCESS) {
-        ide->Close();
+        ide->channels[channel].mutex.Unlock();
         return status;
     }
 
@@ -396,7 +396,7 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
 
     // Read the data
     int64_t numSectors = count / ATAPI_SECTOR_SIZE;
-    countRead = 0;
+    int64_t countRead = 0;
     uint64_t value;
     uint32_t lba = address;
     uint16_t* wBuffer = (uint16_t*)buffer;
@@ -410,13 +410,13 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
         // Send PACKET command
         status = Write(ATA_REG_COMMAND, ATA_CMD_PACKET);
         if (status != SUCCESS) {
-            ide->Close();
+            ide->channels[channel].mutex.Unlock();
             return status;
         }
 
         // Wait
         if (!Polling(true)) {
-            ide->Close();
+            ide->channels[channel].mutex.Unlock();
             return ERROR_DEVICE_ERROR;
         }
 
@@ -425,7 +425,7 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
         ide->WaitIRQ();
 
         if (!Polling(true)) {
-            ide->Close();
+            ide->channels[channel].mutex.Unlock();
             return ERROR_DEVICE_ERROR;
         }
 
@@ -438,7 +438,7 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
         do {
             status = Read(ATA_REG_STATUS, &value);
             if (status != SUCCESS) {
-                ide->Close();
+                ide->channels[channel].mutex.Unlock();
                 return status;
             }
         } while (value & (ATA_SR_BSY | ATA_SR_DRQ));
@@ -448,12 +448,10 @@ uint64_t ATAPIDevice::DoReadStream(uint64_t address, void* buffer, int64_t count
         lba++;
     }
 
-    ide->Close();
+    ide->channels[channel].mutex.Unlock();
 
     return SUCCESS;
 }
-
-uint64_t ATAPIDevice::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) { return ERROR_NOT_IMPLEMENTED; }
 
 bool ATAPIDevice::Polling(bool advancedCheck) {
     uint64_t state;

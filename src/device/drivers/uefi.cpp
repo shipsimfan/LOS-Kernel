@@ -23,10 +23,7 @@ UEFIVideoDevice::UEFIVideoDevice() : Device("UEFI GOP Video", Type::CONSOLE), fo
 
 UEFIVideoDevice::~UEFIVideoDevice() { delete backbuffer; }
 
-uint64_t UEFIVideoDevice::OnOpen() { return SUCCESS; }
-uint64_t UEFIVideoDevice::OnClose() { return SUCCESS; }
-
-uint64_t UEFIVideoDevice::DoRead(uint64_t address, uint64_t* value) {
+uint64_t UEFIVideoDevice::Read(uint64_t address, uint64_t* value) {
     switch (address) {
     case CURSOR_X_ADDRESS:
         *value = cursorX;
@@ -51,9 +48,7 @@ uint64_t UEFIVideoDevice::DoRead(uint64_t address, uint64_t* value) {
     return SUCCESS;
 }
 
-uint64_t UEFIVideoDevice::DoReadStream(uint64_t address, void* buffer, int64_t count, int64_t& countRead) { return ERROR_NOT_IMPLEMENTED; }
-
-uint64_t UEFIVideoDevice::DoWrite(uint64_t address, uint64_t value) {
+uint64_t UEFIVideoDevice::Write(uint64_t address, uint64_t value) {
     switch (address) {
     case CURSOR_X_ADDRESS:
         if (value > consoleWidth)
@@ -86,14 +81,14 @@ uint64_t UEFIVideoDevice::DoWrite(uint64_t address, uint64_t value) {
     return SUCCESS;
 }
 
-uint64_t UEFIVideoDevice::DoWriteStream(uint64_t address, void* buffer, int64_t count, int64_t& countWritten) {
-    countWritten = 0;
+int64_t UEFIVideoDevice::WriteStream(uint64_t address, void* buffer, int64_t count) {
+    int64_t countWritten = 0;
     char* string = (char*)buffer;
     for (int i = 0; string[i] && i < count; i++)
         if (DisplayCharacter(string[i]))
             countWritten++;
 
-    return SUCCESS;
+    return countWritten;
 }
 
 void UEFIVideoDevice::PlotPixel(uint32_t x, uint32_t y, uint32_t pixel) {
