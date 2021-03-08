@@ -12,7 +12,7 @@ uint64_t filesystemsSize = 0;
 Queue<FilesystemDriver> filesystemDrivers;
 Mutex filesystemDriversMutex;
 
-File::File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem) : size(size), directory(directory), filesystem(filesystem), lock(0) {
+File::File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem) : size(size), directory(directory), filesystem(filesystem), refCount(0) {
     this->name = new char[strlen(name) + 1];
     strcpy(this->name, name);
 
@@ -20,31 +20,18 @@ File::File(const char* name, const char* extension, int64_t size, Directory* dir
     strcpy(this->extension, extension);
 }
 
-bool File::LockRead() {
-    if (lock < 0)
-        return false;
+void File::IncreamentRefCount() {
+    if (refCount == ~0)
+        return;
 
-    lock++;
-    return true;
+    refCount++;
 }
 
-void File::UnlockRead() {
-    if (lock > 0)
-        lock--;
-}
+void File::DecreamentRefCount() {
+    if (refCount == 0)
+        return;
 
-bool File::LockWrite() {
-    if (lock == 0) {
-        lock = -1;
-        return true;
-    }
-
-    return false;
-}
-
-void File::UnlockWrite() {
-    if (lock == -1)
-        lock = 0;
+    refCount--;
 }
 
 Filesystem* File::GetFilesystem() { return filesystem; }
@@ -284,6 +271,7 @@ int Open(const char* filepath) {
         return -1;
     }
 
+    file->IncreamentRefCount();
     return currentProcess->AddFile(file);
 }
 
@@ -298,7 +286,7 @@ void Close(int fd) {
         return;
     }
 
-    currentProcess->files[fd]->file->UnlockRead();
+    currentProcess->files[fd]->file->DecreamentRefCount();
     delete currentProcess->files[fd];
     currentProcess->files[fd] = nullptr;
 }

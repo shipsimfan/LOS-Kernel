@@ -20,11 +20,8 @@ class File {
 public:
     File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem);
 
-    bool LockRead();
-    void UnlockRead();
-
-    bool LockWrite();
-    void UnlockWrite();
+    void IncreamentRefCount();
+    void DecreamentRefCount();
 
     Filesystem* GetFilesystem();
     int64_t GetSize();
@@ -40,7 +37,7 @@ private:
     Directory* directory;
     Filesystem* filesystem;
 
-    int64_t lock;
+    uint64_t refCount;
 };
 
 class Directory {

@@ -5,7 +5,7 @@
 #include <string.h>
 
 namespace Device {
-    Device::Device(const char* name, Type type) : type(type), parent(nullptr), refCount(0) {
+    Device::Device(const char* name, Type type) : type(type), refCount(0), parent(nullptr) {
         this->name = new char[strlen(name) + 1];
         strcpy(this->name, name);
     }
@@ -70,7 +70,7 @@ namespace Device {
     }
 
     void Device::IncreamentRefCount() {
-        if (refCount == ~0)
+        if (refCount == (uint64_t)~0)
             return;
 
         refCount++;
