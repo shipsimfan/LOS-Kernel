@@ -330,3 +330,17 @@ int64_t Seek(int fd, int64_t offset, int whence) {
 
     return currentProcess->files[fd]->offset;
 }
+
+int64_t Tell(int fd) {
+    if (fd >= (int)currentProcess->filesLength) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    if (currentProcess->files[fd] == nullptr) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    return currentProcess->files[fd]->offset;
+}

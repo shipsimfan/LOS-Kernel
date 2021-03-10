@@ -33,31 +33,34 @@ LD_POST_FLAGS := -nostdlib -lgcc
 
 # BASE RULES
 all: dirs $(KERNEL)
+	@echo "[ KERNEL ] Build Complete!"
 
 clean:
-	rm -rf $(OBJ_DIR)/*
-	rm -rf $(BIN_DIR)/*
+	@rm -rf $(OBJ_DIR)/*
+	@rm -rf $(BIN_DIR)/*
+	@echo "[ KERNEL ] Cleaned!"
 
 clean-acpica:
-	rm -rf $(ACPICA_OBJ_DIR)/*
+	@rm -rf $(ACPICA_OBJ_DIR)/*
+	@echo "[ ACPICA ] Cleaned!"
 
 # COMPILATION RULES
 .SECONDEXPANSION:
 
 $(KERNEL): $(C_OBJ_FILES) $(CPP_OBJ_FILES) $(ASM_OBJ_FILES) $(ACPICA_OBJ_FILES)
-	@echo "(LD) $@ . . ."
+	@echo "[ KERNEL ] (LD) $@ . . ."
 	@$(LD) $(LD_FLAGS) -o $@ $^ $(LD_POST_FLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $$(@D)/.
-	@echo "(CPP) $^ . . ."
+	@echo "[ KERNEL ] (CPP) $^ . . ."
 	@$(CPP) $(CPP_FLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm | $$(@D)/.
-	@echo "(ASM) $^ . . ."
+	@echo "[ KERNEL ] (ASM) $^ . . ."
 	@$(ASM) $(ASM_FLAGS) -o $@ $^
 
 $(ACPICA_OBJ_DIR)/%.o: $(ACPICA_DIR)/%.cpp
-	@echo "(CPP) $^ . . ."
+	@echo "[ ACPICA ] (CPP) $^ . . ."
 	@$(CPP) $(CPP_FLAGS) -o $@ $^
 
 
