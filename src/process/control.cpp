@@ -6,6 +6,7 @@
 #include <fs.h>
 #include <interrupt/stack.h>
 #include <memory/virtual.h>
+#include <pair.h>
 #include <process/process.h>
 #include <queue.h>
 
@@ -17,6 +18,9 @@ Queue<Process> processHash[PROCESS_HASH_SIZE];
 Mutex processHashMutex;
 
 Queue<Process> runningQueue;
+
+Queue<Pair<uint64_t, uint64_t>> zombie;
+Mutex zombieMutex;
 
 extern "C" uint64_t ProperFork(Process* child);
 extern "C" void TaskSwitch(Process* newProcess);
@@ -133,6 +137,21 @@ uint64_t Wait(uint64_t pid) {
     processHashMutex.Lock();
     if (processHash[idx].front() == nullptr) {
         processHashMutex.Unlock();
+        zombieMutex.Lock();
+        if (zombie.front() == nullptr) {
+            zombieMutex.Unlock();
+            return 0xFFFFFFFFFFFFFFFF;
+        }
+
+        Queue<Pair<uint64_t, uint64_t>>::Iterator iter(&zombie);
+        do {
+            if (iter.value->key == pid) {
+                zombieMutex.Unlock();
+                return iter.value->value;
+            }
+        } while (iter.Next());
+
+        zombieMutex.Unlock();
         return 0xFFFFFFFFFFFFFFFF;
     }
 
@@ -157,11 +176,14 @@ uint64_t Wait(uint64_t pid) {
 
 void Exit(uint64_t status) {
     // Awaken exit queue
-    for (Process* proc = currentProcess->exit.front(); proc != nullptr; proc = currentProcess->exit.front()) {
-        proc->queueData = status & 0xFF;
-        QueueExecution(proc);
-        currentProcess->exit.pop();
-    }
+    if (currentProcess->exit.front() != nullptr) {
+        for (Process* proc = currentProcess->exit.front(); proc != nullptr; proc = currentProcess->exit.front()) {
+            proc->queueData = status & 0xFF;
+            QueueExecution(proc);
+            currentProcess->exit.pop();
+        }
+    } else
+        zombie.push(new Pair<uint64_t, uint64_t>(currentProcess->id, status & 0xFF));
 
     // Exit
     register Process* oldProcess = currentProcess;
