@@ -15,7 +15,7 @@ public:
 private:
     void PlotPixel(uint32_t x, uint32_t y, uint32_t pixel);
     void RenderCharacter(char character, uint32_t x, uint32_t y);
-    bool DisplayCharacter(char character);
+    int DisplayCharacter(char character);
     void ScrollUp();
     void ClearScreen();
 

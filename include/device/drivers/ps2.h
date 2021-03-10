@@ -32,9 +32,15 @@ public:
     int64_t ReadStream(uint64_t address, void* buffer, int64_t count) override;
 
 private:
+    char ScancodeToChar(uint8_t scancode);
+
     PS2Controller* controller;
     uint64_t port;
     Mutex mutex;
+
+    bool leftShift = false, rightShift = false;
+    bool capsLock = false;
+    bool numLock = false;
 };
 
 void InitializePS2Driver();

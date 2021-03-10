@@ -231,11 +231,11 @@ uint64_t PS2Controller::WriteAndWait(uint64_t port, uint8_t data) {
 }
 
 PS2Keyboard::PS2Keyboard(PS2Controller* controller, uint64_t port) : Device("PS/2 Keyboard", Type::KEYBOARD), controller(controller), port(port) {
-    // Set scancode set to 2
+    // Set scancode set to 1
     if (controller->WriteAndWait(port, 0xF0) != SUCCESS)
         return;
 
-    outb(PS2_REG_DATA, 2);
+    outb(PS2_REG_DATA, 1);
 
     // Enable scanning
     if (controller->WriteAndWait(port, PS2_DEV_CMD_ENABLE_SCAN) != SUCCESS)
@@ -252,30 +252,56 @@ int64_t PS2Keyboard::ReadStream(uint64_t address, void* buffer, int64_t count) {
             ;
 
         // Enter key
-        if (controller->portData[port] == 0x5A) {
-            buf[countRead] = 0;
-            mutex.Unlock();
-            return countRead;
-        }
-
-        if (controller->portData[port] > 0x55) {
+        char c = ScancodeToChar(controller->portData[port]);
+        if (c == -1) {
             countRead--;
             continue;
         }
 
-        if (scancodeToChar[controller->portData[port]] == 0) {
-            countRead--;
-            continue;
-        }
+        if ((capsLock && !leftShift && !rightShift) || (!capsLock && (leftShift || rightShift)))
+            c = Upper(c);
 
-        Console::Print("%c", scancodeToChar[controller->portData[port]]);
-        buf[countRead] = scancodeToChar[controller->portData[port]];
+        buf[countRead] = c;
+
+        if (c == 0)
+            break;
     }
 
-    buf[count - 1] = 0;
     mutex.Unlock();
 
     return countRead;
+}
+
+char PS2Keyboard::ScancodeToChar(uint8_t scancode) {
+    if (scancode == 0xAA) {
+        leftShift = false;
+        return -1;
+    } else if (scancode == 0xB6) {
+        rightShift = false;
+        return -1;
+    } else if (scancode > 0x53)
+        return -1;
+
+    switch (scancode) {
+    case 0x2A:
+        leftShift = true;
+        return -1;
+
+    case 0x36:
+        rightShift = true;
+        return -1;
+
+    case 0x3A:
+        capsLock = !capsLock;
+        return -1;
+
+    case 0x45:
+        numLock = !numLock;
+        return -1;
+
+    default:
+        return scancodes[scancode];
+    }
 }
 
 void InitializePS2Driver() {
@@ -293,4 +319,68 @@ void InitializePS2Driver() {
 
     PS2Controller* controller = new PS2Controller;
     Device::RegisterDevice(nullptr, controller);
+}
+
+char Upper(char c) {
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 'A';
+
+    switch (c) {
+    case '1':
+        return '!';
+
+    case '2':
+        return '@';
+
+    case '3':
+        return '#';
+
+    case '4':
+        return '$';
+
+    case '5':
+        return '%';
+
+    case '6':
+        return '^';
+
+    case '7':
+        return '&';
+
+    case '8':
+        return '*';
+
+    case '9':
+        return '(';
+
+    case '0':
+        return ')';
+
+    case '-':
+        return '_';
+
+    case '=':
+        return '+';
+
+    case '\\':
+        return '|';
+
+    case ';':
+        return ':';
+
+    case '\'':
+        return '"';
+
+    case ',':
+        return '<';
+
+    case '.':
+        return '>';
+
+    case '/':
+        return '?';
+
+    default:
+        return c;
+    }
 }

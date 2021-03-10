@@ -85,8 +85,7 @@ int64_t UEFIVideoDevice::WriteStream(uint64_t address, void* buffer, int64_t cou
     int64_t countWritten = 0;
     char* string = (char*)buffer;
     for (int i = 0; string[i] && i < count; i++)
-        if (DisplayCharacter(string[i]))
-            countWritten++;
+        countWritten += DisplayCharacter(string[i]);
 
     return countWritten;
 }
@@ -108,8 +107,8 @@ void UEFIVideoDevice::RenderCharacter(char character, uint32_t x, uint32_t y) {
             PlotPixel(x + 8 - cx, y + cy - 12, glyph[cy] & mask[cx] ? foregroundColor : backgroundColor);
 }
 
-bool UEFIVideoDevice::DisplayCharacter(char character) {
-    bool ret = false;
+int UEFIVideoDevice::DisplayCharacter(char character) {
+    int ret = 0;
 
     switch (character) {
     case '\n':
@@ -118,10 +117,31 @@ bool UEFIVideoDevice::DisplayCharacter(char character) {
 
         break;
 
+    case '\t':
+        if (cursorX % 4 == 0)
+            ret += DisplayCharacter(' ');
+
+        while (cursorX % 4 != 0)
+            ret += DisplayCharacter(' ');
+
+        break;
+
+    case '\b':
+        if (cursorX > 0) {
+            cursorX--;
+            ret += DisplayCharacter(' ');
+            cursorX--;
+        } else if (cursorY > 0) {
+            cursorY--;
+            cursorX = consoleWidth - 1;
+        }
+
+        break;
+
     default:
         RenderCharacter(character, cursorX * 8, cursorY * 16);
         cursorX++;
-        ret = true;
+        ret = 1;
         break;
     }
 
