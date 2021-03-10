@@ -28,11 +28,7 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
         return Execute((const char*)arg1);
 
     case 4:
-        if (arg2 >= KERNEL_VMA)
-            break;
-
-        ((uint64_t*)arg2)[0] = Wait(arg1);
-        break;
+        return Wait(arg1);
 
     default:
         Console::Println("Unhandled system call (%#llx)", num);
