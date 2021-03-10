@@ -147,7 +147,9 @@ uint64_t Wait(uint64_t pid) {
         do {
             if (iter.value->key == pid) {
                 zombieMutex.Unlock();
-                return iter.value->value;
+                uint64_t ret = iter.value->value;
+                iter.Remove();
+                return ret;
             }
         } while (iter.Next());
 
