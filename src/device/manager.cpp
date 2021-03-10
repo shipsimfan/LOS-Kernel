@@ -48,8 +48,8 @@ namespace Device {
     }
 
     int Open(Device* device) {
-        currentProcess->AddDevice(device);
         device->IncreamentRefCount();
+        return currentProcess->AddDevice(device);
     }
 
     void Close(int dd) {

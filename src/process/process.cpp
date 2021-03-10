@@ -167,7 +167,7 @@ void Process::RemoveDevice(uint64_t deviceDescriptor) {
 }
 
 Device::Device* Process::GetDevice(int deviceDescriptor) {
-    if (deviceDescriptor >= devicesLength)
+    if ((uint64_t)deviceDescriptor >= devicesLength)
         return nullptr;
 
     return devices[deviceDescriptor];

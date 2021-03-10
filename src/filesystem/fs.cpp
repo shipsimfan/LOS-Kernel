@@ -21,7 +21,7 @@ File::File(const char* name, const char* extension, int64_t size, Directory* dir
 }
 
 void File::IncreamentRefCount() {
-    if (refCount == ~0)
+    if (refCount == (uint64_t)~0)
         return;
 
     refCount++;

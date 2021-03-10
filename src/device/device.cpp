@@ -13,8 +13,6 @@ namespace Device {
     Device::~Device() {
         childrenMutex.Lock();
 
-        this->name = "DELETED";
-
         while (refCount != 0)
             asm volatile("pause");
 
