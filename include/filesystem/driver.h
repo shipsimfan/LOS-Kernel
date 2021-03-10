@@ -11,6 +11,7 @@ public:
     virtual int64_t DetectFilesystem(Device::Device* drive, uint64_t startLBA, int64_t size) = 0;
 
     virtual int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) = 0;
+    virtual int64_t Write(File* file, int64_t offset, void* buffer, int64_t count) = 0;
 
 private:
     char* name;
@@ -64,7 +65,7 @@ private:
 
 class Filesystem {
 public:
-    Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name);
+    Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly = false);
 
     int64_t Read(uint64_t address, void* buffer, int64_t count);
     int64_t Write(uint64_t address, void* buffer, int64_t count);
@@ -86,6 +87,8 @@ private:
     char* volumeName;
 
     Directory* rootDir;
+
+    bool readOnly;
 };
 
 struct FileDescriptor {

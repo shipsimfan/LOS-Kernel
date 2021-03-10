@@ -18,5 +18,6 @@
 // Other Errors
 #define ERROR_ACPI_ERROR 0x20
 #define ERROR_DEVICE_ERROR 0x21
+#define ERROR_READ_ONLY 0x22
 
 #define errno currentProcess->errno

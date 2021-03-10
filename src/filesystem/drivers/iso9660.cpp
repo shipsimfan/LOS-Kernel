@@ -198,4 +198,9 @@ int64_t ISO9660Driver::Read(File* file, int64_t offset, void* buffer, int64_t co
     return count;
 }
 
+int64_t ISO9660Driver::Write(File* file, int64_t offset, void* buffer, int64_t count) {
+    errno = ERROR_NOT_IMPLEMENTED;
+    return -1;
+}
+
 ISO9660File::ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA) : File(name, extension, size, directory, filesystem), entryLBA(entryLBA) {}

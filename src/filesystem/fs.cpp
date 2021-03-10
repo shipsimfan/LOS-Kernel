@@ -56,13 +56,20 @@ const char* Directory::GetName() { return name; }
 Queue<Directory>* Directory::GetSubDirectories() { return &subDirectories; }
 Queue<File>* Directory::GetFiles() { return &files; }
 
-Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name) : drive(drive), driver(driver), startLBA(startLBA), length(length) {
+Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly) : drive(drive), driver(driver), startLBA(startLBA), length(length), readOnly(readOnly) {
     volumeName = new char[strlen(name) + 1];
     strcpy(volumeName, name);
 }
 
 int64_t Filesystem::Read(uint64_t address, void* buffer, int64_t count) { return drive->ReadStream(address, buffer, count); }
-int64_t Filesystem::Write(uint64_t address, void* buffer, int64_t count) { return drive->WriteStream(address, buffer, count); }
+int64_t Filesystem::Write(uint64_t address, void* buffer, int64_t count) {
+    if (readOnly) {
+        errno = ERROR_READ_ONLY;
+        return -1;
+    }
+
+    return drive->WriteStream(address, buffer, count);
+}
 
 Device::Device* Filesystem::GetDrive() { return drive; }
 FilesystemDriver* Filesystem::GetDriver() { return driver; }
@@ -308,6 +315,20 @@ int64_t Read(int fd, void* buffer, int64_t count) {
     }
 
     return currentProcess->files[fd]->file->GetFilesystem()->GetDriver()->Read(currentProcess->files[fd]->file, currentProcess->files[fd]->offset, buffer, count);
+}
+
+int64_t Write(int fd, void* buffer, int64_t count) {
+    if (fd >= (int)currentProcess->filesLength) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    if (currentProcess->files[fd] == nullptr) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    return currentProcess->files[fd]->file->GetFilesystem()->GetDriver()->Write(currentProcess->files[fd]->file, currentProcess->files[fd]->offset, buffer, count);
 }
 
 int64_t Seek(int fd, int64_t offset, int whence) {

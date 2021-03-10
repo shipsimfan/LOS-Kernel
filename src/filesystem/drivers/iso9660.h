@@ -38,6 +38,7 @@ public:
     int64_t DetectFilesystem(Device::Device* drive, uint64_t startLBA, int64_t size) override;
 
     int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) override;
+    int64_t Write(File* file, int64_t offset, void* buffer, int64_t count) override;
 
 private:
     bool SetupDirectory(Filesystem* filesystem, Directory* directory, void* bufferStart, uint64_t bufferLength);

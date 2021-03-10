@@ -10,6 +10,7 @@ int Open(const char* filepath);
 void Close(int fd);
 
 int64_t Read(int fd, void* buffer, int64_t count);
+int64_t Write(int fd, void* buffer, int64_t count);
 
 int64_t Seek(int fd, int64_t offset, int whence);
 int64_t Tell(int fd);
