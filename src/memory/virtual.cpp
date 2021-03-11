@@ -45,7 +45,7 @@ namespace Memory { namespace Virtual {
             // Using the first page of virtual memory to detect null pointer exceptions
             // Meaning you can't use the first page of virtual memory. Hopefully you didn't need those 4 kilobytes
             if (cr2 < PAGE_SIZE)
-                panic("Null Pointer Exception at %#llx (Faulting Address: %#llx)", info.rip, cr2);
+                panic("Null Pointer Exception at %#llx (Faulting Address: %#llx) (Error Code: %#x)", info.rip, cr2, info.errorCode);
             else {
                 if (currentPML4 != kernelPML4 || cr2 >= KERNEL_VMA)
                     Allocate((VirtualAddress)cr2, Physical::Allocate());

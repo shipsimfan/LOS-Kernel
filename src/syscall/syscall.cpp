@@ -59,6 +59,9 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
 
         return Write(arg1, (void*)arg2, arg3);
 
+    case 11:
+        return Fork();
+
     default:
         Console::Println("Unhandled system call (%#llx)", num);
     }

@@ -28,6 +28,8 @@ extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
 extern "C" void TaskEnter(Process* newProcess, uint64_t entry);
 
+uint64_t test = 0;
+
 void Preempt() {
     if (currentProcess == nullptr)
         return;
@@ -64,6 +66,9 @@ void QueueExecution(Process* process) { runningQueue.push(process); }
 uint64_t Fork() {
     // Create the child process
     Process* child = new Process(currentProcess->name);
+
+    // Copy stack pointer
+    child->userStackPointer = currentProcess->userStackPointer;
 
     // Copy address space
     Memory::Virtual::CopyCurrentAddressSpace(child->pagingStructure);
