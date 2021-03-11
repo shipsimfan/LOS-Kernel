@@ -13,3 +13,5 @@ uint64_t Execute(const char* filepath);
 uint64_t Wait(uint64_t pid);
 
 void Exit(uint64_t status);
+
+int GetCurrentWorkingDirectory(void* ptr, uint64_t size);

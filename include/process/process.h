@@ -41,6 +41,8 @@ struct Process {
 
     State state;
 
+    Directory* currentDirectory;
+
     friend void ::SetKernelProcess();
 
     uint64_t AddDevice(Device::Device* device);

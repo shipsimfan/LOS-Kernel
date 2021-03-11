@@ -67,6 +67,12 @@ Process::Process(const char* name) {
                     files[i]->file->IncreamentRefCount();
             }
         }
+
+        // Set current working directory
+        if (currentProcess->currentDirectory != nullptr)
+            currentDirectory = currentProcess->currentDirectory;
+        else
+            currentDirectory = GetRootDirectory(0);
     } else {
         // Clear the hashmap
         processHashMutex.Lock();
@@ -82,6 +88,9 @@ Process::Process(const char* name) {
 
         // Set the stack
         stack = (uint8_t*)&stackTop;
+
+        // Set current directory to nullptr
+        currentDirectory = nullptr;
     }
 }
 

@@ -9,6 +9,7 @@
 #include <pair.h>
 #include <process/process.h>
 #include <queue.h>
+#include <string.h>
 
 Process kernelProcess("System");
 
@@ -208,4 +209,19 @@ void Exit(uint64_t status) {
     delete oldProcess;
 
     TaskExit();
+}
+
+int GetCurrentWorkingDirectory(void* ptr, uint64_t size) {
+    char* text = (char*)ptr;
+    if (currentProcess == nullptr || currentProcess->currentDirectory == nullptr) {
+        text[0] = 0;
+        return 0;
+    }
+
+    char* name = currentProcess->currentDirectory->GetFullName();
+    if (size <= strlen(name))
+        return -1;
+
+    strcpy(text, name);
+    return 0;
 }

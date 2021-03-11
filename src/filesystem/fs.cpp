@@ -56,7 +56,36 @@ const char* Directory::GetName() { return name; }
 Queue<Directory>* Directory::GetSubDirectories() { return &subDirectories; }
 Queue<File>* Directory::GetFiles() { return &files; }
 
-Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly) : drive(drive), driver(driver), startLBA(startLBA), length(length), readOnly(readOnly) {
+char* Directory::GetFullName() {
+    if (parent == this) {
+        char* fsName = new char[32];
+        fsName[0] = ':';
+        int i = 1;
+        int fs = filesystem->GetNumber();
+        do {
+            fsName[i] = (fs % 10) + '0';
+            fs /= 10;
+            i++;
+        } while (fs);
+
+        fsName[i] = '/';
+        fsName[i + 1] = 0;
+        return fsName;
+    } else {
+        char* parentName = parent->GetFullName();
+        char* fullName = new char[strlen(parentName) + strlen(name) + 2];
+
+        strcpy(fullName, parentName);
+        strcat(fullName, name);
+        strcat(fullName, "/");
+
+        delete parentName;
+
+        return fullName;
+    }
+}
+
+Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly) : drive(drive), driver(driver), startLBA(startLBA), length(length), readOnly(readOnly), filesystemNumber(-1) {
     volumeName = new char[strlen(name) + 1];
     strcpy(volumeName, name);
 }
@@ -76,6 +105,9 @@ FilesystemDriver* Filesystem::GetDriver() { return driver; }
 Directory* Filesystem::GetRootDirectory() { return rootDir; }
 
 void Filesystem::SetRootDirectory(Directory* newRootDir) { rootDir = newRootDir; }
+
+void Filesystem::SetNumber(int number) { filesystemNumber = number; }
+int Filesystem::GetNumber() { return filesystemNumber; }
 
 void RegisterFilesystem(Filesystem* filesystem) {
     filesystemsMutex.Lock();
@@ -103,6 +135,7 @@ void RegisterFilesystem(Filesystem* filesystem) {
         newArray[i] = nullptr;
 
     newArray[newFilesystemIndex] = filesystem;
+    filesystem->SetNumber(newFilesystemIndex);
 
     if (filesystems != nullptr)
         delete filesystems;
@@ -182,12 +215,13 @@ int Open(const char* filepath) {
 
         ptr++;
     } else {
-        // Relative filepath
+        if (currentProcess->currentDirectory == nullptr) {
+            errno = ERROR_BAD_PARAMETER;
+            filesystemsMutex.Unlock();
+            return -1;
+        }
 
-        // TODO: setu directory to present working directory
-        errno = ERROR_BAD_PARAMETER;
-        filesystemsMutex.Unlock();
-        return -1;
+        currentDirectory = currentProcess->currentDirectory;
     }
 
     const char* start;
@@ -364,4 +398,16 @@ int64_t Tell(int fd) {
     }
 
     return currentProcess->files[fd]->offset;
+}
+
+int GetNumFilesystems() { return filesystemsSize; }
+
+Directory* GetRootDirectory(int filesystem) {
+    Directory* ret = nullptr;
+    filesystemDriversMutex.Lock();
+    if (filesystem < (int)filesystemsSize && filesystems[filesystem] != nullptr)
+        ret = filesystems[filesystem]->GetRootDirectory();
+    filesystemDriversMutex.Unlock();
+
+    return ret;
 }

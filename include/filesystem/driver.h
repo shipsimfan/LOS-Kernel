@@ -53,6 +53,8 @@ public:
 
     const char* GetName();
 
+    char* GetFullName();
+
 private:
     char* name;
 
@@ -77,6 +79,9 @@ public:
 
     void SetRootDirectory(Directory* newRootDir);
 
+    void SetNumber(int number);
+    int GetNumber();
+
 private:
     Device::Device* drive;
     FilesystemDriver* driver;
@@ -89,6 +94,8 @@ private:
     Directory* rootDir;
 
     bool readOnly;
+
+    int filesystemNumber;
 };
 
 struct FileDescriptor {
