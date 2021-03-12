@@ -21,13 +21,13 @@ ASM_OBJ_FILES := $(ASM_SRC_FILES:$(SRC_DIR)/%.asm=$(OBJ_DIR)/%.o)
 ACPICA_OBJ_FILES := $(ACPICA_SRC_FILES:$(ACPICA_DIR)/%.cpp=$(ACPICA_OBJ_DIR)/%.o)
 
 # PROGRAMS
-CPP := x86_64-elf-g++
+CPP := x86_64-los-g++
 CPP_FLAGS := -ffreestanding -fomit-frame-pointer -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-exceptions -fno-rtti -c -Wall -I./include  -D DEBUG -g
 
 ASM := nasm
 ASM_FLAGS := -f elf64 -g -F dwarf
 
-LD := x86_64-elf-g++
+LD := x86_64-los-g++
 LD_FLAGS := -ffreestanding -z max-page-size=0x1000 -T $(LINK_FILE) -g
 LD_POST_FLAGS := -nostdlib -lgcc
 
