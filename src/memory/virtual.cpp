@@ -183,7 +183,7 @@ namespace Memory { namespace Virtual {
         PML4* oldPML4 = (PML4*)(currentProcess->pagingStructure + KERNEL_VMA);
 
         // Allocate new PML4
-        PML4* newPML4 = (PML4*)(Physical::Allocate() + KERNEL_VMA);
+        PML4* newPML4 = (PML4*)(original + KERNEL_VMA);
 
         // Deep copy lower half
         uint64_t entry;
