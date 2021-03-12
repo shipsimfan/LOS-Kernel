@@ -9,6 +9,7 @@ template <class T> class Queue {
 
     Node* head;
     Node* tail;
+    uint64_t count;
 
 public:
     Queue() : head(nullptr), tail(nullptr){};
@@ -28,6 +29,8 @@ public:
 
             tail = newNode;
         }
+
+        count++;
     }
 
     inline void pop() {
@@ -43,6 +46,8 @@ public:
             head->prev = nullptr;
 
         delete node;
+
+        count--;
     }
 
     inline T* front() {
@@ -122,6 +127,7 @@ public:
                 queue->tail = currentNode->prev;
 
             delete currentNode;
+            queue->count--;
 
             currentNode = newNode;
             if (currentNode != nullptr)
