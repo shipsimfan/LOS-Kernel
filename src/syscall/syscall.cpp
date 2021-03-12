@@ -74,6 +74,15 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
 
         return ChangeDirectory((const char*)arg1);
 
+    case 14:
+        return currentProcess->currentDirectory->GetNumEntries();
+
+    case 15:
+        if (arg1 >= KERNEL_VMA)
+            return 0;
+
+        return currentProcess->currentDirectory->GetEntries((Dirent*)arg1, arg2);
+
     default:
         Console::Println("Unhandled system call (%#llx)", num);
     }

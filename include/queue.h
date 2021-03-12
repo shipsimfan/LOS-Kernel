@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 template <class T> class Queue {
     struct Node {
         Node* next;
@@ -9,10 +11,10 @@ template <class T> class Queue {
 
     Node* head;
     Node* tail;
-    uint64_t count;
+    uint64_t size;
 
 public:
-    Queue() : head(nullptr), tail(nullptr){};
+    Queue() : head(nullptr), tail(nullptr), size(0){};
 
     inline void push(T* value) {
         Node* newNode = new Node;
@@ -30,7 +32,7 @@ public:
             tail = newNode;
         }
 
-        count++;
+        size++;
     }
 
     inline void pop() {
@@ -47,7 +49,7 @@ public:
 
         delete node;
 
-        count--;
+        size--;
     }
 
     inline T* front() {
@@ -63,6 +65,8 @@ public:
 
         return tail->val;
     }
+
+    inline uint64_t count() { return size; }
 
     class Iterator {
     public:
@@ -127,7 +131,7 @@ public:
                 queue->tail = currentNode->prev;
 
             delete currentNode;
-            queue->count--;
+            queue->size--;
 
             currentNode = newNode;
             if (currentNode != nullptr)

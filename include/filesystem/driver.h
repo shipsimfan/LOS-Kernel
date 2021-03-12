@@ -2,6 +2,15 @@
 
 #include <device/device.h>
 
+#define DIRENT_TYPE_FILE 0
+#define DIRENT_TYPE_DIRECTORY 1
+
+struct Dirent {
+    char name[128];
+    uint8_t type;
+    uint64_t size;
+};
+
 class Filesystem;
 class Directory;
 class File;
@@ -53,6 +62,9 @@ public:
     const char* GetName();
     char* GetFullName();
     Directory* GetParent();
+    uint64_t GetNumEntries();
+
+    uint64_t GetEntries(Dirent* entries, uint64_t size);
 
 private:
     char* name;

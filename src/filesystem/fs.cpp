@@ -86,6 +86,43 @@ char* Directory::GetFullName() {
 }
 
 Directory* Directory::GetParent() { return parent; }
+uint64_t Directory::GetNumEntries() { return subDirectories.count() + files.count() + 2; }
+
+uint64_t Directory::GetEntries(Dirent* entries, uint64_t size) {
+    uint64_t numEntries = GetNumEntries();
+    if (sizeof(Dirent) * numEntries > size)
+        return 0;
+
+    entries[0].type = DIRENT_TYPE_DIRECTORY;
+    entries[1].type = DIRENT_TYPE_DIRECTORY;
+
+    strcpy(entries[0].name, ".");
+    strcpy(entries[1].name, "..");
+
+    int i = 2;
+    if (subDirectories.front() != nullptr) {
+        Queue<Directory>::Iterator iter(&subDirectories);
+        do {
+            entries[i].type = DIRENT_TYPE_DIRECTORY;
+            strcpy(entries[i].name, iter.value->GetName());
+            i++;
+        } while (iter.Next());
+    }
+
+    if (files.front() != nullptr) {
+        Queue<File>::Iterator iter(&files);
+        do {
+            entries[i].type = DIRENT_TYPE_FILE;
+            entries[i].size = iter.value->GetSize();
+            strcpy(entries[i].name, iter.value->GetName());
+            strcat(entries[i].name, ".");
+            strcat(entries[i].name, iter.value->GetExtension());
+            i++;
+        } while (iter.Next());
+    }
+
+    return numEntries;
+}
 
 Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly) : drive(drive), driver(driver), startLBA(startLBA), length(length), readOnly(readOnly), filesystemNumber(-1) {
     volumeName = new char[strlen(name) + 1];
