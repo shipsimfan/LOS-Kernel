@@ -87,7 +87,7 @@ char* strcat(char* destination, const char* source) {
     for (i = 0; source[i]; i++)
         destination[i + len] = source[i];
 
-    destination[i] = 0;
+    destination[i + len] = 0;
     return destination;
 }
 

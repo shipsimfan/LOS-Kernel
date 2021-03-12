@@ -18,3 +18,5 @@ int64_t Tell(int fd);
 
 int GetNumFilesystems();
 Directory* GetRootDirectory(int filesystem);
+
+uint64_t ChangeDirectory(const char* path);

@@ -85,6 +85,8 @@ char* Directory::GetFullName() {
     }
 }
 
+Directory* Directory::GetParent() { return parent; }
+
 Filesystem::Filesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name, bool readOnly) : drive(drive), driver(driver), startLBA(startLBA), length(length), readOnly(readOnly), filesystemNumber(-1) {
     volumeName = new char[strlen(name) + 1];
     strcpy(volumeName, name);
@@ -241,6 +243,19 @@ int Open(const char* filepath) {
             errno = ERROR_BAD_PARAMETER;
             filesystemsMutex.Unlock();
             return -1;
+        }
+
+        if (ptr - start == 1) {
+            if (start[0] == '.') {
+                ptr++;
+                continue;
+            }
+        } else if (ptr - start == 2) {
+            if (start[0] == '.' && start[1] == '.') {
+                currentDirectory = currentDirectory->GetParent();
+                ptr++;
+                continue;
+            }
         }
 
         Queue<Directory>* directories = currentDirectory->GetSubDirectories();
@@ -410,4 +425,121 @@ Directory* GetRootDirectory(int filesystem) {
     filesystemDriversMutex.Unlock();
 
     return ret;
+}
+
+uint64_t ChangeDirectory(const char* path) {
+    // Parse the file path
+    const char* ptr = path;
+    Directory* currentDirectory;
+
+    filesystemsMutex.Lock();
+    if (*ptr == ':') {
+        // Absolute filepath
+        // Find the drive
+        uint64_t driveNumber = 0;
+        ptr++;
+        while (*ptr != '/' && *ptr != '\\' && *ptr != 0) {
+            if (*ptr < '0' || *ptr > '9') {
+                filesystemsMutex.Unlock();
+                return 1;
+            }
+
+            driveNumber *= 10;
+            driveNumber += *ptr - '0';
+            ptr++;
+        }
+
+        if (driveNumber > filesystemsSize) {
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        if (filesystems[driveNumber] == nullptr) {
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        currentDirectory = filesystems[driveNumber]->GetRootDirectory();
+
+        if (*ptr == 0) {
+            currentProcess->currentDirectory = currentDirectory;
+            filesystemsMutex.Unlock();
+            return 0;
+        }
+
+        ptr++;
+    } else {
+        if (currentProcess->currentDirectory == nullptr) {
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        currentDirectory = currentProcess->currentDirectory;
+    }
+
+    const char* start;
+    while (1) {
+        start = ptr;
+        while (*ptr != '/' && *ptr != '\\' && *ptr != 0)
+            ptr++;
+
+        if (start == ptr) {
+            if (*ptr == 0)
+                break;
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        if (ptr - start == 1) {
+            if (start[0] == '.') {
+                if (*ptr == 0)
+                    break;
+                ptr++;
+                continue;
+            }
+        } else if (ptr - start == 2) {
+            if (start[0] == '.' && start[1] == '.') {
+                currentDirectory = currentDirectory->GetParent();
+                if (*ptr == 0)
+                    break;
+                ptr++;
+                continue;
+            }
+        }
+
+        Queue<Directory>* directories = currentDirectory->GetSubDirectories();
+        if (directories->front() == nullptr) {
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        Queue<Directory>::Iterator iter(directories);
+        bool found = false;
+        do {
+            if (strlen(iter.value->GetName()) != (uint64_t)(ptr - start))
+                continue;
+
+            if (memcmp(iter.value->GetName(), start, ptr - start))
+                continue;
+
+            found = true;
+            currentDirectory = iter.value;
+        } while (iter.Next());
+
+        if (!found) {
+            filesystemsMutex.Unlock();
+            return 1;
+        }
+
+        if (*ptr == 0)
+            break;
+
+        ptr++;
+    }
+
+    currentProcess->currentDirectory = currentDirectory;
+
+    filesystemsMutex.Unlock();
+
+    return 0;
 }

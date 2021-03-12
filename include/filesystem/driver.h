@@ -50,10 +50,9 @@ public:
 
     Queue<Directory>* GetSubDirectories();
     Queue<File>* GetFiles();
-
     const char* GetName();
-
     char* GetFullName();
+    Directory* GetParent();
 
 private:
     char* name;
