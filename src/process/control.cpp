@@ -64,28 +64,6 @@ void Yield() {
 
 void QueueExecution(Process* process) { runningQueue.push(process); }
 
-uint64_t Fork() {
-    // Create the child process
-    Process* child = new Process(currentProcess->name);
-
-    // Copy stack pointer
-    child->userStackPointer = currentProcess->userStackPointer;
-
-    // Copy address space
-    Memory::Virtual::CopyCurrentAddressSpace(child->pagingStructure);
-
-    // Do proper fork
-    if (ProperFork(child)) {
-        // Add child to running queue
-        runningQueue.push(child);
-
-        // Return the id
-        return child->id;
-    }
-
-    return 0;
-}
-
 uint64_t Execute(const char* filepath) {
     // Open the file
     int fd = Open(filepath);
