@@ -127,7 +127,7 @@ ProperFork:
 
 GLOBAL TaskEnter
 TaskEnter:
-        ; Save registers
+    ; Save registers
     push rax
     push rbx
     push rcx
@@ -154,11 +154,14 @@ TaskEnter:
     mov [rax], rdi
 
     ; Set stack pointer
-    mov rsp, 0x7FFFFFFFFFF0
+    mov rsp, rdx
 
     ; Set registers
-    mov rcx, rsi
-    mov r11, (1 << 9)
+    mov rdi, rcx ;argc
+    mov rdx, r9 ;envp
+    mov rcx, rsi ;entry
+    mov rsi, r8 ;argv
+    mov r11, (1 << 9) ;sti
 
     ; Enter the new process    
     o64 sysret

@@ -27,7 +27,7 @@ extern "C" uint64_t ProperFork(Process* child);
 extern "C" void TaskSwitch(Process* newProcess);
 extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
-extern "C" void TaskEnter(Process* newProcess, uint64_t entry);
+extern "C" void TaskEnter(Process* newProcess, uint64_t entry, char* stackBottom, int argc, const char** argv, const char** envp);
 
 uint64_t test = 0;
 
@@ -64,7 +64,7 @@ void Yield() {
 
 void QueueExecution(Process* process) { runningQueue.push(process); }
 
-uint64_t Execute(const char* filepath) {
+uint64_t Execute(const char* filepath, const char** args, const char** env) {
     // Open the file
     int fd = Open(filepath);
     if (fd < 0)
@@ -100,12 +100,77 @@ uint64_t Execute(const char* filepath) {
         return 0;
     }
 
+    // Count number of arguments
+    int argc = 0;
+    if (args != nullptr) {
+        const char** ptr = args;
+        for (; *ptr; argc++)
+            ptr++;
+    }
+
+    // Prepare start of the stack
+    char* stackBottom = (char*)0x7FFFFFFFFFFF;
+
+    // Copy arguments into user space
+    const char** argvUser = new const char*[argc];
+    for (int i = 0; i < argc; i++) {
+        stackBottom -= strlen(args[i]) + 1;
+        strcpy(stackBottom, args[i]);
+        argvUser[i] = stackBottom;
+    }
+
+    // Count number of environment variables
+    int envc = 0;
+    if (env != nullptr) {
+        const char** ptr = env;
+        for (; *ptr; envc++)
+            ptr++;
+    }
+
+    // Copy environment variables into user space
+    const char** envpUser = new const char*[envc];
+    for (int i = 0; i < envc; i++) {
+        stackBottom -= strlen(env[i]) + 1;
+        strcpy(stackBottom, env[i]);
+        envpUser[i] = stackBottom;
+    }
+
+    // Align stack pointer
+    stackBottom = (char*)((uint64_t)stackBottom & 0x7FFFFFFFFFF8);
+
+    // Fill argv
+    const char** argv = (const char**)stackBottom;
+    argv -= argc + 1;
+    for (int i = 0; i < argc; i++) {
+        *argv = argvUser[i];
+        argv++;
+    }
+    *argv = nullptr;
+    argv -= argc;
+
+    delete argvUser;
+
+    // Fill envp
+    const char** envp = argv;
+    envp -= envc + 1;
+    for (int i = 0; i < envc; i++) {
+        *envp = envpUser[i];
+        envp++;
+    }
+    *envp = nullptr;
+    envp -= envc;
+
+    delete envpUser;
+
+    // Align stack pointer
+    stackBottom = (char*)((uint64_t)envp & 0x7FFFFFFFFFF0);
+
     // Switch process and entry
     QueueExecution(currentProcess);
     asm volatile("cli");
     currentProcess->state = Process::State::NORMAL;
     Interrupt::SetInterruptStack((uint64_t)newProcess->stack);
-    TaskEnter(newProcess, entry);
+    TaskEnter(newProcess, entry, stackBottom, argc, argv, envp);
     return newProcess->id;
 }
 

@@ -2,6 +2,7 @@
 #include <device/manager.h>
 #include <fs.h>
 #include <process/control.h>
+#include <string.h>
 
 extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4) {
     switch (num) {
@@ -22,11 +23,58 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
 
         return Device::ReadStream(arg1, arg2, (void*)arg3, arg4);
 
-    case 3:
-        if (arg1 >= KERNEL_VMA)
-            break;
+    case 3: {
+        if (arg1 >= KERNEL_VMA || arg2 >= KERNEL_VMA || arg3 >= KERNEL_VMA)
+            return 0;
 
-        return Execute((const char*)arg1);
+        // Copy args into kernel space
+        int argc = 0;
+        const char** argvUser = (const char**)arg2;
+        if (argvUser != nullptr) {
+            for (; (uint64_t)argvUser[argc] < KERNEL_VMA && argvUser[argc]; argc++)
+                ;
+
+            if ((uint64_t)argvUser[argc] >= KERNEL_VMA)
+                return 0;
+        }
+
+        char** argvKernel = new char*[argc + 1];
+        int i;
+        for (i = 0; i < argc; i++) {
+            char* arg = new char[strlen(argvUser[i]) + 1];
+            strcpy(arg, argvUser[i]);
+            argvKernel[i] = arg;
+        }
+        argvKernel[i] = nullptr;
+
+        // Copy environment variables into kernel space
+        int envc = 0;
+        const char** envpUser = (const char**)arg3;
+        if (envpUser != nullptr) {
+            for (; (uint64_t)envpUser[envc] < KERNEL_VMA && envpUser[envc]; envc++)
+                ;
+
+            if ((uint64_t)envpUser[envc] >= KERNEL_VMA)
+                return 0;
+        }
+
+        char** envpKernel = new char*[envc + 1];
+        for (i = 0; i < envc; i++) {
+            char* envVar = new char[strlen(envpUser[i]) + 1];
+            strcpy(envVar, envpUser[i]);
+            envpKernel[i] = envVar;
+        }
+        envpKernel[i] = nullptr;
+
+        uint64_t ret = Execute((const char*)arg1, (const char**)argvKernel, (const char**)envpKernel);
+        for (i = 0; i < argc; i++)
+            delete argvKernel[i];
+        for (i = 0; i < envc; i++)
+            delete envpKernel[i];
+        delete argvKernel;
+        delete envpKernel;
+        return ret;
+    }
 
     case 4:
         return Wait(arg1);

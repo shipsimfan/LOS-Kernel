@@ -7,7 +7,7 @@
 void Yield();
 void QueueExecution(Process* process);
 
-uint64_t Execute(const char* filepath);
+uint64_t Execute(const char* filepath, const char** args, const char** env);
 
 uint64_t Wait(uint64_t pid);
 
