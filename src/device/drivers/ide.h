@@ -78,4 +78,5 @@
 #define IDE_ATA 0x0
 #define IDE_ATAPI 0x01
 
+#define ATA_SECTOR_SIZE 512
 #define ATAPI_SECTOR_SIZE 2048

@@ -244,7 +244,7 @@ int Open(const char* filepath) {
             return -1;
         }
 
-        if (filesystems[driveNumber] == nullptr) {
+        if (!filesystems || filesystems[driveNumber] == nullptr) {
             errno = ERROR_BAD_PARAMETER;
             filesystemsMutex.Unlock();
             return -1;
