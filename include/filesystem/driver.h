@@ -51,6 +51,8 @@ private:
 };
 
 class Directory {
+    friend Filesystem;
+
 public:
     Directory(const char* name, Directory* parent, Filesystem* filesystem);
 

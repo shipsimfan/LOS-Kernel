@@ -117,41 +117,35 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
         else if (memcmp(entries[i].name, "..      ", 8) == 0)
             continue;
 
-        if (memcmp(entries[i].name, "USR", 3) == 0)
-            Console::Println("AHHH!");
-
         uint32_t firstCluster = (entries[i].firstClusterHigh << 16) | entries[i].firstClusterLow;
 
         char name[9];
-        int j;
-        for (j = 0; j < 8 && entries[i].name[j]; j++)
+        for (int j = 0; j < 8; j++)
             name[j] = entries[i].name[j];
 
-        name[j] = 0;
+        name[8] = 0;
+        for (int j = 7; j >= 0 && name[j] == ' '; j--)
+            name[j] = 0;
 
         if (entries[i].attributes & DIRECTORY) {
             // Create directory
             FATDirectory* newDirectory = new FATDirectory(name, directory, filesystem, firstCluster);
             directory->AddSubDirectory(newDirectory);
 
-            Console::Println("[ FAT ] New directory: %s", newDirectory->GetName());
-
             SetupDirectory(newDirectory, filesystem);
         } else {
             // Create file
             char extension[4];
             int k;
-            for (k = 0; k < 3 && entries[i].extension[k]; k++)
+            for (k = 0; k < 3 && entries[i].extension[k] != ' '; k++)
                 extension[k] = entries[i].extension[k];
 
             extension[k] = 0;
 
             uint64_t size = entries[i].size;
 
-            File* newFile = new File(name, extension, size, directory, filesystem);
+            FATFile* newFile = new FATFile(name, extension, size, directory, filesystem, firstCluster);
             directory->AddSubFile(newFile);
-
-            Console::Println("[ FAT ] New file: %s.%s", newFile->GetName(), newFile->GetExtension());
         }
     }
 
@@ -168,17 +162,17 @@ Queue<void>* FATDriver::GetClusterChain(uint32_t firstCluster, FATFilesystem* fi
     uint32_t* buffer = new uint32_t[filesystem->bytesPerSector / 4];
     do {
         uint32_t FATSector = filesystem->firstFATSector + ((cluster * 4) / filesystem->bytesPerSector);
-        uint32_t FATOffset = cluster % filesystem->bytesPerSector;
+        uint32_t FATOffset = ((cluster * 4) % filesystem->bytesPerSector) / 4;
 
         if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0)
             return nullptr;
 
         cchain = buffer[FATOffset] & 0x0FFFFFFF;
 
-        ret->push((void*)(uint64_t)cluster);
+        ret->push((void*)(uint64_t)(cluster & 0x0FFFFFFF));
 
         cluster = cchain;
-    } while (cchain != 0 && !((cchain & 0x0FFFFFFF) >= 0x0FFFFF8));
+    } while (cchain != 0 && !((cchain & 0x0FFFFFFF) >= 0x0FFFFFF8));
 
     delete buffer;
 
@@ -186,8 +180,48 @@ Queue<void>* FATDriver::GetClusterChain(uint32_t firstCluster, FATFilesystem* fi
 }
 
 int64_t FATDriver::Read(File* file, int64_t offset, void* buffer, int64_t count) {
-    errno = ERROR_NOT_IMPLEMENTED;
-    return -1;
+    FATFilesystem* fs = (FATFilesystem*)file->GetFilesystem();
+    FATFile* f = (FATFile*)file;
+
+    uint32_t startClusterOffset = offset / (fs->bytesPerSector * fs->sectorsPerCluster);
+    uint32_t endClusterOffset = (offset + count) / (fs->bytesPerSector * fs->sectorsPerCluster);
+
+    if ((offset + count) % (fs->bytesPerSector * fs->sectorsPerCluster) != 0)
+        endClusterOffset++;
+
+    uint32_t numClusters = endClusterOffset - startClusterOffset;
+
+    Queue<void>* clusterChain = GetClusterChain(f->firstCluster, fs);
+    if (clusterChain == nullptr) {
+        errno = ERROR_DEVICE_ERROR;
+        return -1;
+    }
+
+    uint8_t* bufferToUse = new uint8_t[numClusters * fs->bytesPerSector * fs->sectorsPerCluster];
+    uint64_t bufferOffset = 0;
+    while ((uint64_t)clusterChain->front() != 0 && !(((uint64_t)clusterChain->front() & 0x0FFFFFFF) >= 0x0FFFFF8)) {
+        uint32_t cluster = (uint64_t)clusterChain->front();
+        clusterChain->pop();
+
+        if (startClusterOffset > 0) {
+            startClusterOffset--;
+            endClusterOffset--;
+            continue;
+        }
+
+        if (fs->Read(fs->ClusterToLBA(cluster), bufferToUse + bufferOffset, fs->bytesPerSector * fs->sectorsPerCluster) < 0)
+            return -1;
+
+        bufferOffset += fs->bytesPerSector * fs->sectorsPerCluster;
+
+        endClusterOffset--;
+        if (endClusterOffset == 0)
+            break;
+    }
+
+    memcpy(buffer, bufferToUse + (offset % (fs->bytesPerSector * fs->sectorsPerCluster)), count);
+
+    return count;
 }
 
 int64_t FATDriver::Write(File* file, int64_t offset, void* buffer, int64_t count) {
@@ -199,3 +233,5 @@ FATFilesystem::FATFilesystem(Device::Device* drive, FilesystemDriver* driver, ui
 uint64_t FATFilesystem::ClusterToLBA(uint32_t cluster) { return firstUsableCluster + cluster * sectorsPerCluster - 2 * sectorsPerCluster; }
 
 FATDirectory::FATDirectory(const char* name, Directory* parent, Filesystem* filesystem, uint32_t firstCluster) : Directory(name, parent, filesystem), firstCluster(firstCluster) {}
+
+FATFile::FATFile(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster) : File(name, extension, size, directory, filesystem), firstCluster(firstCluster) {}

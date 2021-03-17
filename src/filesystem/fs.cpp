@@ -143,7 +143,10 @@ Device::Device* Filesystem::GetDrive() { return drive; }
 FilesystemDriver* Filesystem::GetDriver() { return driver; }
 Directory* Filesystem::GetRootDirectory() { return rootDir; }
 
-void Filesystem::SetRootDirectory(Directory* newRootDir) { rootDir = newRootDir; }
+void Filesystem::SetRootDirectory(Directory* newRootDir) {
+    rootDir = newRootDir;
+    rootDir->parent = newRootDir;
+}
 
 void Filesystem::SetNumber(int number) { filesystemNumber = number; }
 int Filesystem::GetNumber() { return filesystemNumber; }

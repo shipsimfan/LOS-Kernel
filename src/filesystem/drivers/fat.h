@@ -108,3 +108,13 @@ public:
 private:
     uint32_t firstCluster;
 };
+
+class FATFile : public File {
+    friend FATDriver;
+
+public:
+    FATFile(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster);
+
+private:
+    uint32_t firstCluster;
+};
