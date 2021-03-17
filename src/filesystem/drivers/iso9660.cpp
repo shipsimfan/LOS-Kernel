@@ -65,7 +65,7 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     delete volumeName;
 
     // Create the root directory
-    Directory* rootDirectory = new Directory("", nullptr, filesystem);
+    Directory* rootDirectory = new Directory("", rootDirectory, filesystem);
 
     // Set the root directory
     filesystem->SetRootDirectory(rootDirectory);

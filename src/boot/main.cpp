@@ -5,6 +5,7 @@
 #include <device/drivers/ps2.h>
 #include <device/drivers/uefi.h>
 #include <device/manager.h>
+#include <filesystem/drivers/fat.h>
 #include <filesystem/drivers/iso9660.h>
 #include <memory/physical.h>
 #include <process/control.h>
@@ -28,6 +29,7 @@ extern "C" void kmain() {
 
     Console::Println("[ LOS ] Loading built-in drivers . . .");
     InitializeISO9660();
+    InitializeFAT();
     InitializePCIDriver();
     InitializeIDEDriver();
     InitializePS2Driver();

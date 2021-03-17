@@ -338,7 +338,7 @@ uint64_t ATAPIDevice::Read(uint64_t address, uint64_t* value) { return ide->Read
 uint64_t ATAPIDevice::Write(uint64_t address, uint64_t value) { return ide->Write((channel << 8) | address, value); }
 
 int64_t ATAPIDevice::ReadStream(uint64_t address, void* buffer, int64_t count) {
-    if (count <= 0 || (count & ATAPI_SECTOR_SIZE) != 0) {
+    if (count <= 0 || (count % ATAPI_SECTOR_SIZE) != 0) {
         errno = ERROR_BAD_PARAMETER;
         return -1;
     }
@@ -528,7 +528,7 @@ ATADevice::ATADevice(IDEDevice* ide, uint8_t channel, uint8_t drive) : Device(""
 }
 
 int64_t ATADevice::ReadStream(uint64_t address, void* buffer, int64_t count) {
-    if (count <= 0 || (count & ATA_SECTOR_SIZE) != 0) {
+    if (count <= 0 || (count % ATA_SECTOR_SIZE) != 0) {
         errno = ERROR_BAD_PARAMETER;
         return -1;
     }

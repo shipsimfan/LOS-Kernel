@@ -263,6 +263,12 @@ int Open(const char* filepath) {
         currentDirectory = currentProcess->currentDirectory;
     }
 
+    if (currentDirectory == nullptr) {
+        errno = ERROR_BAD_PARAMETER;
+        filesystemDriversMutex.Unlock();
+        return -1;
+    }
+
     const char* start;
     const char* lastDot = nullptr;
     while (1) {
