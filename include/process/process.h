@@ -43,6 +43,8 @@ struct Process {
 
     Directory* currentDirectory;
 
+    void* floatingPoint;
+
     friend void ::SetKernelProcess();
 
     uint64_t AddDevice(Device::Device* device);

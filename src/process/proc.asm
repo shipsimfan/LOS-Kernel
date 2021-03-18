@@ -247,3 +247,13 @@ TaskExit:
     pop rax
 
     ret
+
+GLOBAL FloatLoad
+FloatLoad:
+    fxrstor [rdi]
+    ret
+
+GLOBAL FloatSave
+FloatSave:
+    fxsave [rdi]
+    ret

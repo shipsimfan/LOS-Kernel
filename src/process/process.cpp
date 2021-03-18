@@ -30,6 +30,9 @@ Process::Process(const char* name) {
     files = nullptr;
     filesLength = 0;
 
+    // Allocate floating point storage
+    floatingPoint = Memory::Heap::AllocateAligned(512, 16);
+
     if (currentProcess != nullptr) {
         // Create new paging structures
         currentProcess->pagingStructureMutex.Lock();
@@ -100,6 +103,9 @@ Process::~Process() {
 
     // Free the memory
     Memory::Virtual::DeletePagingStructure(pagingStructure);
+
+    // Free the floating point storage
+    Memory::Heap::Free(floatingPoint);
 
     // Remove from hashmap
     uint64_t idx = id % PROCESS_HASH_SIZE;

@@ -125,6 +125,15 @@ higherHalf:
     mov rax, __dso_handle
     mov QWORD [rax], 0
 
+    ; Enable SSE for floats
+    mov rax, cr0
+    and ax, 0xFFFB
+    or ax, 0x2
+    mov cr0, rax
+    mov rax, cr4
+    or ax, 3 << 9
+    mov cr4, rax
+
     ; Initialize the exception handler
     mov rax, InitExceptions
     call rax

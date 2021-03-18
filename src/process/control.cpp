@@ -28,6 +28,8 @@ extern "C" void TaskSwitch(Process* newProcess);
 extern "C" void SetStackPointer(uint64_t newStackPointer);
 extern "C" void TaskExit();
 extern "C" void TaskEnter(Process* newProcess, uint64_t entry, char* stackBottom, int argc, const char** argv, const char** envp);
+extern "C" void FloatLoad(void* ptr);
+extern "C" void FloatSave(void* ptr);
 
 uint64_t test = 0;
 
@@ -55,6 +57,9 @@ void Yield() {
         newProcess = runningQueue.front();
 
     runningQueue.pop();
+
+    FloatSave(currentProcess->floatingPoint);
+    FloatLoad(newProcess->floatingPoint);
 
     Memory::Virtual::SetCurrentAddressSpace(newProcess->pagingStructure, &newProcess->pagingStructureMutex);
     Interrupt::SetInterruptStack((uint64_t)newProcess->stack);
@@ -167,6 +172,8 @@ uint64_t Execute(const char* filepath, const char** args, const char** env) {
 
     // Switch process and entry
     QueueExecution(currentProcess);
+    FloatSave(currentProcess->floatingPoint);
+
     asm volatile("cli");
     currentProcess->state = Process::State::NORMAL;
     Interrupt::SetInterruptStack((uint64_t)newProcess->stack);
@@ -244,6 +251,8 @@ void Exit(uint64_t status) {
         runningQueue.front();
 
     runningQueue.pop();
+
+    FloatLoad(currentProcess->floatingPoint);
 
     Memory::Virtual::SetCurrentAddressSpace(currentProcess->pagingStructure, &currentProcess->pagingStructureMutex);
 
