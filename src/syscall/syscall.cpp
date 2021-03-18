@@ -3,6 +3,7 @@
 #include <fs.h>
 #include <process/control.h>
 #include <string.h>
+#include <time.h>
 
 extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4) {
     switch (num) {
@@ -127,6 +128,9 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
             return 0;
 
         return currentProcess->currentDirectory->GetEntries((Dirent*)arg1, arg2);
+
+    case 16:
+        return GetCurrentTime();
 
     default:
         Console::Println("Unhandled system call (%#llx)", num);
