@@ -66,6 +66,17 @@ struct DirectoryEntry {
     uint32_t size;
 };
 
+struct LongFilenameEntry {
+    uint8_t identifier;
+    uint16_t first[5];
+    uint8_t attribute;
+    uint8_t type;
+    uint8_t checksum;
+    uint16_t second[6];
+    uint16_t zero;
+    uint16_t third[2];
+};
+
 #pragma pack(pop)
 
 class FATFilesystem;
@@ -113,7 +124,7 @@ class FATFile : public File {
     friend FATDriver;
 
 public:
-    FATFile(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster);
+    FATFile(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster);
 
 private:
     uint32_t firstCluster;

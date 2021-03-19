@@ -28,7 +28,7 @@ private:
 
 class File {
 public:
-    File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem);
+    File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem);
 
     void IncreamentRefCount();
     void DecreamentRefCount();
@@ -36,11 +36,9 @@ public:
     Filesystem* GetFilesystem();
     int64_t GetSize();
     const char* GetName();
-    const char* GetExtension();
 
 private:
     char* name;
-    char* extension;
 
     int64_t size;
 

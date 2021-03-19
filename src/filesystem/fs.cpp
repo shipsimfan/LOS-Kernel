@@ -12,12 +12,9 @@ uint64_t filesystemsSize = 0;
 Queue<FilesystemDriver> filesystemDrivers;
 Mutex filesystemDriversMutex;
 
-File::File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem) : size(size), directory(directory), filesystem(filesystem), refCount(0) {
+File::File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem) : size(size), directory(directory), filesystem(filesystem), refCount(0) {
     this->name = new char[strlen(name) + 1];
     strcpy(this->name, name);
-
-    this->extension = new char[strlen(extension) + 1];
-    strcpy(this->extension, extension);
 }
 
 void File::IncreamentRefCount() {
@@ -37,7 +34,6 @@ void File::DecreamentRefCount() {
 Filesystem* File::GetFilesystem() { return filesystem; }
 int64_t File::GetSize() { return size; }
 const char* File::GetName() { return name; }
-const char* File::GetExtension() { return extension; }
 
 Directory::Directory(const char* name, Directory* parent, Filesystem* filesystem) : filesystem(filesystem) {
     this->name = new char[strlen(name) + 1];
@@ -115,8 +111,6 @@ uint64_t Directory::GetEntries(Dirent* entries, uint64_t size) {
             entries[i].type = DIRENT_TYPE_FILE;
             entries[i].size = iter.value->GetSize();
             strcpy(entries[i].name, iter.value->GetName());
-            strcat(entries[i].name, ".");
-            strcat(entries[i].name, iter.value->GetExtension());
             i++;
         } while (iter.Next());
     }
@@ -273,14 +267,10 @@ int Open(const char* filepath) {
     }
 
     const char* start;
-    const char* lastDot = nullptr;
     while (1) {
         start = ptr;
-        while (*ptr != '/' && *ptr != '\\' && *ptr != 0) {
-            if (*ptr == '.')
-                lastDot = ptr;
+        while (*ptr != '/' && *ptr != '\\' && *ptr != 0)
             ptr++;
-        }
 
         if (*ptr == 0)
             break;
@@ -339,9 +329,6 @@ int Open(const char* filepath) {
         return -1;
     }
 
-    if (lastDot <= start)
-        lastDot = ptr;
-
     Queue<File>* files = currentDirectory->GetFiles();
     if (files->front() == nullptr) {
         errno = ERROR_BAD_PARAMETER;
@@ -351,17 +338,11 @@ int Open(const char* filepath) {
     Queue<File>::Iterator iter(files);
     File* file = nullptr;
     do {
-        if (strlen(iter.value->GetName()) != (uint64_t)(lastDot - start))
+        if (strlen(iter.value->GetName()) != (uint64_t)(ptr - start))
             continue;
 
-        if (memcmp(iter.value->GetName(), start, lastDot - start))
+        if (memcmp(iter.value->GetName(), start, ptr - start))
             continue;
-
-        if (strlen(iter.value->GetExtension()) != (uint64_t)(ptr - lastDot - 1))
-            continue;
-
-        if (memcmp(iter.value->GetExtension(), lastDot + 1, ptr - lastDot - 1))
-            ;
 
         file = iter.value;
     } while (iter.Next());

@@ -136,15 +136,9 @@ bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory,
         } else {
             // Find file name
             int64_t nameLength = 0;
-            int64_t strLength;
             char* fileIdentifier = (char*)(&entry->fileIdentifier);
-            for (strLength = 0; fileIdentifier[strLength] != ';'; strLength++) {
-                if (fileIdentifier[strLength] == '.')
-                    nameLength = strLength;
-            }
-
-            if (nameLength == 0)
-                nameLength = strLength;
+            for (nameLength = 0; fileIdentifier[nameLength] != ';'; nameLength++)
+                ;
 
             char* filename = new char[nameLength + 1];
             char* ptr = &entry->fileIdentifier;
@@ -152,21 +146,8 @@ bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory,
                 filename[i] = tolower(ptr[i]);
             filename[nameLength] = 0;
 
-            // Find file extension
-            char* extension;
-            if (nameLength != strLength) {
-                nameLength++;
-                extension = new char[strLength - nameLength + 1];
-                memcpy(extension, fileIdentifier + nameLength, strLength - nameLength);
-                extension[strLength - nameLength] = 0;
-            } else {
-                extension = new char[1];
-                extension[0] = 0;
-            }
-
-            File* newFile = new ISO9660File(filename, extension, entry->dirLength, directory, filesystem, entry->lba);
+            File* newFile = new ISO9660File(filename, entry->dirLength, directory, filesystem, entry->lba);
             delete filename;
-            delete extension;
 
             directory->AddSubFile(newFile);
         }
@@ -207,4 +188,4 @@ int64_t ISO9660Driver::Write(File* file, int64_t offset, void* buffer, int64_t c
     return -1;
 }
 
-ISO9660File::ISO9660File(const char* name, const char* extension, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA) : File(name, extension, size, directory, filesystem), entryLBA(entryLBA) {}
+ISO9660File::ISO9660File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t entryLBA) : File(name, size, directory, filesystem), entryLBA(entryLBA) {}
