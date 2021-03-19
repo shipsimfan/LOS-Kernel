@@ -345,6 +345,7 @@ int Open(const char* filepath) {
             continue;
 
         file = iter.value;
+        break;
     } while (iter.Next());
 
     filesystemsMutex.Unlock();

@@ -166,6 +166,9 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
                 for (k = 0; k < 3 && entries[i].extension[k] != ' '; k++)
                     name[k + j] = tolower(entries[i].extension[k]);
 
+                if (k == 0)
+                    j--;
+
                 name[k + j] = 0;
             }
 
