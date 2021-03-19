@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <filesystem/driver.h>
 #include <interrupt/irq.h>
+#include <panic.h>
 #include <string.h>
 #include <time.h>
 
@@ -680,7 +681,164 @@ int64_t ATADevice::ReadStream(uint64_t address, void* buffer, int64_t count) {
         }
 
         for (int j = 0; j < ATA_SECTOR_SIZE / 2; j++)
-            wBuffer[i * ATA_SECTOR_SIZE + j] = inw(ide->channels[channel].IO + ATA_REG_DATA);
+            wBuffer[i * ATA_SECTOR_SIZE / 2 + j] = inw(ide->channels[channel].IO + ATA_REG_DATA);
+    }
+
+    ide->channels[channel].mutex.Unlock();
+
+    return count;
+}
+
+int64_t ATADevice::WriteStream(uint64_t address, void* buffer, int64_t count) {
+    if (count <= 0 || (count % ATA_SECTOR_SIZE) != 0) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    uint16_t numSectors = count / ATA_SECTOR_SIZE;
+    uint16_t* wBuffer = (uint16_t*)buffer;
+
+    // Lock the IDE Device
+    ide->channels[channel].mutex.Lock();
+
+    // Select Drive
+    uint64_t status = Write(ATA_REG_HDDEVSEL, drive << 4);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+    Sleep(2);
+
+    // Disable IRQs
+    status = Write(ATA_REG_CONTROL, ide->channels[channel].nIEN = 2);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    uint8_t lbaMode;
+    uint8_t lbaIO[6];
+    uint8_t head;
+    uint16_t cyl;
+    uint8_t sect;
+
+    memset(lbaIO, 0, sizeof(lbaIO));
+
+    if (address >= 0x100000000) {
+        lbaMode = 2;
+        for (int i = 0; i < 6; i++)
+            lbaIO[i] = (address >> (i << 3)) & 0xFF;
+        head = 0;
+    } else if (capabilities & 0x200) {
+        lbaMode = 1;
+        for (int i = 0; i < 3; i++)
+            lbaIO[i] = (address >> (i << 3)) & 0xFF;
+        head = (address >> 24) & 0xF;
+    } else {
+        lbaMode = 0;
+        sect = (address % 63) + 1;
+        cyl = (address + 1 - sect) / (16 * 63);
+        lbaIO[0] = sect;
+        lbaIO[1] = cyl & 0xFF;
+        lbaIO[2] = (cyl >> 8) & 0xFF;
+        head = (address + 1 - sect) % (16 * 63) / 63;
+    }
+
+    // Wait for the status
+    if (!Polling(false)) {
+        ide->channels[channel].mutex.Unlock();
+        errno = ERROR_DEVICE_ERROR;
+        return -1;
+    }
+
+    if (lbaMode == 0)
+        status = Write(ATA_REG_HDDEVSEL, 0xA0 | (drive << 4) | head);
+    else
+        status = Write(ATA_REG_HDDEVSEL, 0xE0 | (drive << 4) | head);
+
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    // Write the sector count and lba address
+    if (lbaMode == 2) {
+        status = Write(ATA_REG_SECCOUNT1, (numSectors >> 8) & 0xFF);
+        if (status != SUCCESS) {
+            ide->channels[channel].mutex.Unlock();
+            errno = status;
+            return -1;
+        }
+
+        status = Write(ATA_REG_LBA3, lbaIO[3]);
+        if (status != SUCCESS) {
+            ide->channels[channel].mutex.Unlock();
+            errno = status;
+            return -1;
+        }
+
+        status = Write(ATA_REG_LBA4, lbaIO[4]);
+        if (status != SUCCESS) {
+            ide->channels[channel].mutex.Unlock();
+            errno = status;
+            return -1;
+        }
+
+        status = Write(ATA_REG_LBA5, lbaIO[5]);
+        if (status != SUCCESS) {
+            ide->channels[channel].mutex.Unlock();
+            errno = status;
+            return -1;
+        }
+    }
+
+    status = Write(ATA_REG_SECCOUNT0, numSectors & 0xFF);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    status = Write(ATA_REG_LBA0, lbaIO[0]);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    status = Write(ATA_REG_LBA1, lbaIO[1]);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    status = Write(ATA_REG_LBA2, lbaIO[2]);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    uint8_t command = ATA_CMD_WRITE_PIO;
+    if (lbaMode == 2)
+        command = ATA_CMD_WRITE_PIO_EXT;
+
+    status = Write(ATA_REG_COMMAND, command);
+    if (status != SUCCESS) {
+        ide->channels[channel].mutex.Unlock();
+        errno = status;
+        return -1;
+    }
+
+    for (int i = 0; i < numSectors; i++) {
+        Polling(false);
+
+        for (int j = 0; j < ATA_SECTOR_SIZE / 2; j++)
+            outw(ide->channels[channel].IO + ATA_REG_DATA, wBuffer[i * ATA_SECTOR_SIZE / 2 + j]);
     }
 
     ide->channels[channel].mutex.Unlock();

@@ -65,6 +65,7 @@ public:
     int64_t ReadStream(uint64_t address, void* buffer, int64_t count) override;
 
     uint64_t Write(uint64_t address, uint64_t value) override;
+    int64_t WriteStream(uint64_t address, void* buffer, int64_t count) override;
 
 private:
     bool Polling(bool advancedCheck);
