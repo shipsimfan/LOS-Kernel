@@ -188,10 +188,10 @@ Device::Device* Process::GetDevice(int deviceDescriptor) {
     return devices[deviceDescriptor];
 }
 
-uint64_t Process::AddFile(File* file) {
+uint64_t Process::AddFile(File* file, int flags) {
     for (uint64_t i = 0; i < filesLength; i++) {
         if (files[i] == nullptr) {
-            files[i] = new FileDescriptor(file);
+            files[i] = new FileDescriptor(file, flags);
             return i;
         }
     }
@@ -210,7 +210,7 @@ uint64_t Process::AddFile(File* file) {
     for (uint64_t i = newFileDescriptor; i < filesLength; i++)
         newArray[i] = nullptr;
 
-    newArray[newFileDescriptor] = new FileDescriptor(file);
+    newArray[newFileDescriptor] = new FileDescriptor(file, flags);
 
     delete files;
     files = newArray;

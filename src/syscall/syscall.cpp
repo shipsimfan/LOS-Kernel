@@ -84,7 +84,7 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
         if (arg1 >= KERNEL_VMA)
             break;
 
-        return Open((const char*)arg1);
+        return Open((const char*)arg1, arg2);
 
     case 6:
         Close(arg1);

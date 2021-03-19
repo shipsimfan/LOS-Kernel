@@ -110,10 +110,12 @@ private:
 };
 
 struct FileDescriptor {
-    FileDescriptor(File* file);
+    FileDescriptor(File* file, int flags);
 
     File* file;
     int64_t offset;
+
+    int flags;
 };
 
 void RegisterDrive(Device::Device* drive, int64_t driveSize);

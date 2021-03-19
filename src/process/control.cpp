@@ -71,7 +71,7 @@ void QueueExecution(Process* process) { runningQueue.push(process); }
 
 uint64_t Execute(const char* filepath, const char** args, const char** env) {
     // Open the file
-    int fd = Open(filepath);
+    int fd = Open(filepath, OPEN_READ);
     if (fd < 0)
         return 0;
 

@@ -181,7 +181,7 @@ void RegisterFilesystem(Filesystem* filesystem) {
     filesystemsMutex.Unlock();
 }
 
-FileDescriptor::FileDescriptor(File* file) : file(file), offset(0) {}
+FileDescriptor::FileDescriptor(File* file, int flags) : file(file), offset(0), flags(flags) {}
 
 void RegisterDrive(Device::Device* drive, int64_t driveSize) {
     if (driveSize < 0)
@@ -212,7 +212,7 @@ void RegisterFilesystemDriver(FilesystemDriver* driver) {
     filesystemDriversMutex.Unlock();
 }
 
-int Open(const char* filepath) {
+int Open(const char* filepath, int flags) {
     // Parse the file path
     const char* ptr = filepath;
     Directory* currentDirectory;
@@ -356,7 +356,7 @@ int Open(const char* filepath) {
     }
 
     file->IncreamentRefCount();
-    return currentProcess->AddFile(file);
+    return currentProcess->AddFile(file, flags);
 }
 
 void Close(int fd) {
@@ -386,6 +386,11 @@ int64_t Read(int fd, void* buffer, int64_t count) {
         return -1;
     }
 
+    if (!(currentProcess->files[fd]->flags & OPEN_READ)) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
     if (currentProcess->files[fd]->offset >= currentProcess->files[fd]->file->GetSize()) {
         memset(buffer, 0, count);
         return count;
@@ -401,6 +406,11 @@ int64_t Write(int fd, void* buffer, int64_t count) {
     }
 
     if (currentProcess->files[fd] == nullptr) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    if (!(currentProcess->files[fd]->flags & OPEN_WRITE)) {
         errno = ERROR_BAD_PARAMETER;
         return -1;
     }
