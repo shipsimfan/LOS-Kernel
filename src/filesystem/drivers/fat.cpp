@@ -200,12 +200,16 @@ Queue<void>* FATDriver::GetClusterChain(uint32_t firstCluster, FATFilesystem* fi
     uint32_t cchain = 0;
 
     uint32_t* buffer = new uint32_t[filesystem->bytesPerSector / 4];
+    uint32_t lastFATSector = 0xFFFFFFFF;
     do {
         uint32_t FATSector = filesystem->firstFATSector + ((cluster * 4) / filesystem->bytesPerSector);
         uint32_t FATOffset = ((cluster * 4) % filesystem->bytesPerSector) / 4;
 
-        if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0)
-            return nullptr;
+        if (lastFATSector != FATSector) {
+            if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0)
+                return nullptr;
+            lastFATSector = FATSector;
+        }
 
         cchain = buffer[FATOffset] & 0x0FFFFFFF;
 
