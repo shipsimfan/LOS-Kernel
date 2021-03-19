@@ -12,7 +12,7 @@ uint64_t filesystemsSize = 0;
 Queue<FilesystemDriver> filesystemDrivers;
 Mutex filesystemDriversMutex;
 
-File::File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem) : size(size), directory(directory), filesystem(filesystem), refCount(0) {
+File::File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint64_t flags) : size(size), directory(directory), filesystem(filesystem), refCount(0), flags(flags) {
     this->name = new char[strlen(name) + 1];
     strcpy(this->name, name);
 }
@@ -34,6 +34,7 @@ void File::DecreamentRefCount() {
 Filesystem* File::GetFilesystem() { return filesystem; }
 int64_t File::GetSize() { return size; }
 const char* File::GetName() { return name; }
+uint64_t File::GetFlags() { return flags; }
 
 Directory::Directory(const char* name, Directory* parent, Filesystem* filesystem) : filesystem(filesystem) {
     this->name = new char[strlen(name) + 1];
@@ -110,6 +111,7 @@ uint64_t Directory::GetEntries(Dirent* entries, uint64_t size) {
         do {
             entries[i].type = DIRENT_TYPE_FILE;
             entries[i].size = iter.value->GetSize();
+            entries[i].flags = iter.value->GetFlags();
             strcpy(entries[i].name, iter.value->GetName());
             i++;
         } while (iter.Next());

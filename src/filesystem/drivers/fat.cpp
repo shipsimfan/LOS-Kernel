@@ -112,7 +112,7 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
             if (lfe->type != 0)
                 continue;
 
-            uint8_t index = lfe->identifier & 0x3F - 1;
+            uint8_t index = (lfe->identifier & 0x3F) - 1;
             for (int i = 0; i < 5; i++)
                 longFilenameBuffer[index + i] = lfe->first[i] & 0xFF;
 
@@ -174,7 +174,14 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
 
             uint64_t size = entries[i].size;
 
-            FATFile* newFile = new FATFile(name, size, directory, filesystem, firstCluster);
+            uint64_t flags = 0;
+            if (entries[i].attributes & HIDDEN)
+                flags |= FILE_FLAG_HIDDEN;
+
+            if (entries[i].attributes & READ_ONLY)
+                flags |= FILE_FLAG_READ_ONLY;
+
+            FATFile* newFile = new FATFile(name, size, directory, filesystem, firstCluster, flags);
             directory->AddSubFile(newFile);
         }
 
@@ -267,4 +274,4 @@ uint64_t FATFilesystem::ClusterToLBA(uint32_t cluster) { return firstUsableClust
 
 FATDirectory::FATDirectory(const char* name, Directory* parent, Filesystem* filesystem, uint32_t firstCluster) : Directory(name, parent, filesystem), firstCluster(firstCluster) {}
 
-FATFile::FATFile(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster) : File(name, size, directory, filesystem), firstCluster(firstCluster) {}
+FATFile::FATFile(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster, int flags) : File(name, size, directory, filesystem, flags), firstCluster(firstCluster) {}

@@ -124,7 +124,7 @@ class FATFile : public File {
     friend FATDriver;
 
 public:
-    FATFile(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster);
+    FATFile(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint32_t firstCluster, int flags);
 
 private:
     uint32_t firstCluster;

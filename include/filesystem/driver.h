@@ -5,10 +5,14 @@
 #define DIRENT_TYPE_FILE 0
 #define DIRENT_TYPE_DIRECTORY 1
 
+#define FILE_FLAG_READ_ONLY 1
+#define FILE_FLAG_HIDDEN 2
+
 struct Dirent {
     char name[128];
     uint8_t type;
     uint64_t size;
+    uint64_t flags;
 };
 
 class Filesystem;
@@ -28,7 +32,7 @@ private:
 
 class File {
 public:
-    File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem);
+    File(const char* name, int64_t size, Directory* directory, Filesystem* filesystem, uint64_t flags = 0);
 
     void IncreamentRefCount();
     void DecreamentRefCount();
@@ -36,6 +40,7 @@ public:
     Filesystem* GetFilesystem();
     int64_t GetSize();
     const char* GetName();
+    uint64_t GetFlags();
 
 private:
     char* name;
@@ -46,6 +51,8 @@ private:
     Filesystem* filesystem;
 
     uint64_t refCount;
+
+    uint64_t flags;
 };
 
 class Directory {
