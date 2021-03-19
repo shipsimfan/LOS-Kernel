@@ -89,6 +89,8 @@ public:
     int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) override;
     int64_t Write(File* file, int64_t offset, void* buffer, int64_t count) override;
 
+    int64_t Truncate(File* file, int64_t newSize) override;
+
 private:
     bool SetupDirectory(FATDirectory* directory, FATFilesystem* filesystem);
 

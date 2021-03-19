@@ -19,6 +19,8 @@ int64_t Write(int fd, void* buffer, int64_t count);
 int64_t Seek(int fd, int64_t offset, int whence);
 int64_t Tell(int fd);
 
+int64_t Truncate(int fd, int64_t newSize);
+
 int GetNumFilesystems();
 Directory* GetRootDirectory(int filesystem);
 

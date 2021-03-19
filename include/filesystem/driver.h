@@ -26,6 +26,8 @@ public:
     virtual int64_t Read(File* file, int64_t offset, void* buffer, int64_t count) = 0;
     virtual int64_t Write(File* file, int64_t offset, void* buffer, int64_t count) = 0;
 
+    virtual int64_t Truncate(File* file, int64_t newSize) = 0;
+
 private:
     char* name;
 };

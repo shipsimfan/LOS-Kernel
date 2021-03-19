@@ -455,6 +455,25 @@ int64_t Tell(int fd) {
     return currentProcess->files[fd]->offset;
 }
 
+int64_t Truncate(int fd, int64_t newSize) {
+    if (fd >= (int)currentProcess->filesLength) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    if (currentProcess->files[fd] == nullptr) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    if (!(currentProcess->files[fd]->flags & OPEN_WRITE)) {
+        errno = ERROR_BAD_PARAMETER;
+        return -1;
+    }
+
+    return currentProcess->files[fd]->file->GetFilesystem()->GetDriver()->Truncate(currentProcess->files[fd]->file, newSize);
+}
+
 int GetNumFilesystems() { return filesystemsSize; }
 
 Directory* GetRootDirectory(int filesystem) {

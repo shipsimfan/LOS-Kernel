@@ -132,6 +132,9 @@ extern "C" uint64_t SystemCall(uint64_t num, uint64_t arg1, uint64_t arg2, uint6
     case 16:
         return GetCurrentTime();
 
+    case 17:
+        return Truncate(arg1, arg2);
+
     default:
         Console::Println("Unhandled system call (%#llx)", num);
     }

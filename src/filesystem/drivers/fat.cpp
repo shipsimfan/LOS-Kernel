@@ -269,6 +269,12 @@ int64_t FATDriver::Write(File* file, int64_t offset, void* buffer, int64_t count
     return -1;
 }
 
+int64_t FATDriver::Truncate(File* file, int64_t newSize) {
+    Console::Println("Truncating %s from %i to %i\n", file->GetName(), file->GetSize(), newSize);
+
+    return 0;
+}
+
 FATFilesystem::FATFilesystem(Device::Device* drive, FilesystemDriver* driver, uint64_t startLBA, int64_t length, const char* name) : Filesystem(drive, driver, startLBA, length, name) {}
 uint64_t FATFilesystem::ClusterToLBA(uint32_t cluster) { return firstUsableCluster + cluster * sectorsPerCluster - 2 * sectorsPerCluster; }
 
