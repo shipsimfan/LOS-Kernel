@@ -65,7 +65,7 @@ int64_t ISO9660Driver::DetectFilesystem(Device::Device* drive, uint64_t startLBA
     delete volumeName;
 
     // Create the root directory
-    Directory* rootDirectory = new Directory("", rootDirectory, filesystem);
+    Directory* rootDirectory = new Directory("", nullptr, filesystem);
 
     // Set the root directory
     filesystem->SetRootDirectory(rootDirectory);
@@ -111,7 +111,9 @@ bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory,
     while (entry->length > 0) {
         if (entry->flags & 2) {
             char* name = new char[entry->filenameLength + 1];
-            memcpy(name, &entry->fileIdentifier, entry->filenameLength);
+            char* ptr = &entry->fileIdentifier;
+            for (int i = 0; i < entry->filenameLength; i++)
+                name[i] = tolower(ptr[i]);
             name[entry->filenameLength] = 0;
             Directory* newDir = new Directory(name, directory, filesystem);
             delete name;
@@ -145,7 +147,9 @@ bool ISO9660Driver::SetupDirectory(Filesystem* filesystem, Directory* directory,
                 nameLength = strLength;
 
             char* filename = new char[nameLength + 1];
-            memcpy(filename, fileIdentifier, nameLength);
+            char* ptr = &entry->fileIdentifier;
+            for (int i = 0; i < entry->filenameLength; i++)
+                filename[i] = tolower(ptr[i]);
             filename[nameLength] = 0;
 
             // Find file extension

@@ -121,7 +121,7 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
 
         char name[9];
         for (int j = 0; j < 8; j++)
-            name[j] = entries[i].name[j];
+            name[j] = tolower(entries[i].name[j]);
 
         name[8] = 0;
         for (int j = 7; j >= 0 && name[j] == ' '; j--)
@@ -138,7 +138,7 @@ bool FATDriver::SetupDirectory(FATDirectory* directory, FATFilesystem* filesyste
             char extension[4];
             int k;
             for (k = 0; k < 3 && entries[i].extension[k] != ' '; k++)
-                extension[k] = entries[i].extension[k];
+                extension[k] = tolower(entries[i].extension[k]);
 
             extension[k] = 0;
 

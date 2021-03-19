@@ -42,7 +42,7 @@ extern "C" void kmain() {
     }
 
     Console::Println("[ LOS ] Executing shell . . .");
-    uint64_t pid = Execute(":0/LOS/SHELL.APP", nullptr, nullptr);
+    uint64_t pid = Execute(":0/los/shell.app", nullptr, nullptr);
 
     if (pid == 0) {
         Console::SetForegroundColor(0xFF, 0x00, 0x00);

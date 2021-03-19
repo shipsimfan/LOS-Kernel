@@ -134,3 +134,10 @@ int strncmp(const char* s1, const char* s2, uint64_t n) {
             return *(unsigned char*)(s1 - 1) - *(unsigned char*)(s2 - 1);
     return 0;
 }
+
+char tolower(char c) {
+    if (c >= 'A' && c <= 'Z')
+        return c - 'A' + 'a';
+
+    return c;
+}
