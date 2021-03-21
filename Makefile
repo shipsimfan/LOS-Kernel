@@ -3,7 +3,6 @@ SRC_DIR := ./src
 TARGET_DIR := ./target
 OBJ_DIR := $(TARGET_DIR)/obj
 BIN_DIR := ./bin
-SYSROOT_DIR := ../sysroot
 
 # TARGET
 KERNEL := $(BIN_DIR)/kernel.elf
@@ -25,12 +24,12 @@ LD_FLAGS := -z max-page-size=0x1000 -T $(LINK_FILE) -g
 LD_POST_FLAGS := -nostdlib
 
 # BASE RULES
-all: install
+all: dirs $(KERNEL)
 	@echo "[ KERNEL ] Build complete!"
 
-install: dirs $(KERNEL)
-	@cp $(KERNEL) $(SYSROOT_DIR)/
-	@echo "[ KERNEL ] Installed!"
+clean:
+	@rm -rf $(TARGET_DIR)/
+	@rm -rf $(BIN_DIR)/
 
 # TARGET RULE
 $(KERNEL): $(RUST_TARGET) $(ASM_OBJ_FILES)
