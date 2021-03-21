@@ -39,10 +39,13 @@ public:
     void IncreamentRefCount();
     void DecreamentRefCount();
 
+    void SetSize(int64_t newSize);
+
     Filesystem* GetFilesystem();
     int64_t GetSize();
     const char* GetName();
     uint64_t GetFlags();
+    Directory* GetDirectory();
 
 private:
     char* name;

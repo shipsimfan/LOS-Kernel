@@ -398,6 +398,12 @@ int64_t Read(int fd, void* buffer, int64_t count) {
         return count;
     }
 
+    if (currentProcess->files[fd]->offset + count >= currentProcess->files[fd]->file->GetSize()) {
+        int64_t fileOverrun = (currentProcess->files[fd]->offset + count) - currentProcess->files[fd]->file->GetSize();
+        count -= fileOverrun;
+        memset((uint8_t*)buffer + count, 0, fileOverrun);
+    }
+
     return currentProcess->files[fd]->file->GetFilesystem()->GetDriver()->Read(currentProcess->files[fd]->file, currentProcess->files[fd]->offset, buffer, count);
 }
 

@@ -206,8 +206,10 @@ Queue<void>* FATDriver::GetClusterChain(uint32_t firstCluster, FATFilesystem* fi
         uint32_t FATOffset = ((cluster * 4) % filesystem->bytesPerSector) / 4;
 
         if (lastFATSector != FATSector) {
-            if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0)
+            if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0) {
+                delete buffer;
                 return nullptr;
+            }
             lastFATSector = FATSector;
         }
 
@@ -221,6 +223,47 @@ Queue<void>* FATDriver::GetClusterChain(uint32_t firstCluster, FATFilesystem* fi
     delete buffer;
 
     return ret;
+}
+
+bool FATDriver::ShrinkClusterChain(uint32_t firstCluster, uint32_t newClusterCount, FATFilesystem* filesystem) {
+    uint32_t cluster = firstCluster;
+    uint32_t* buffer = new uint32_t[filesystem->bytesPerSector / 4];
+    uint32_t lastFATSector = 0xFFFFFFFF;
+    uint32_t index = 1;
+    do {
+        uint32_t FATSector = filesystem->firstFATSector + ((cluster * 4) / filesystem->bytesPerSector);
+        uint32_t FATOffset = ((cluster * 4) % filesystem->bytesPerSector) / 4;
+
+        if (lastFATSector != FATSector) {
+            if (lastFATSector != 0xFFFFFFFF && filesystem->Write(lastFATSector, buffer, filesystem->bytesPerSector) < 0) {
+                delete buffer;
+                return false;
+            }
+
+            if (filesystem->Read(FATSector, buffer, filesystem->bytesPerSector) < 0) {
+                delete buffer;
+                return false;
+            }
+
+            lastFATSector = FATSector;
+        }
+
+        if (index == newClusterCount)
+            buffer[FATOffset] = 0xFFFFFFFF;
+        else if (index > newClusterCount)
+            buffer[FATOffset] = 0;
+
+        cluster = buffer[FATOffset] & 0x0FFFFFFF;
+        index++;
+    } while (cluster != 0 && !((cluster & 0x0FFFFFFF) >= 0x0FFFFFF8));
+
+    if (filesystem->Write(lastFATSector, buffer, filesystem->bytesPerSector) < 0) {
+        delete buffer;
+        return false;
+    }
+
+    delete buffer;
+    return true;
 }
 
 int64_t FATDriver::Read(File* file, int64_t offset, void* buffer, int64_t count) {
@@ -243,7 +286,7 @@ int64_t FATDriver::Read(File* file, int64_t offset, void* buffer, int64_t count)
 
     uint8_t* bufferToUse = new uint8_t[numClusters * fs->bytesPerSector * fs->sectorsPerCluster];
     uint64_t bufferOffset = 0;
-    while ((uint64_t)clusterChain->front() != 0 && !(((uint64_t)clusterChain->front() & 0x0FFFFFFF) >= 0x0FFFFF8)) {
+    while (clusterChain->front()) {
         uint32_t cluster = (uint64_t)clusterChain->front();
         clusterChain->pop();
 
@@ -275,6 +318,82 @@ int64_t FATDriver::Write(File* file, int64_t offset, void* buffer, int64_t count
 
 int64_t FATDriver::Truncate(File* file, int64_t newSize) {
     Console::Println("Truncating %s from %i to %i\n", file->GetName(), file->GetSize(), newSize);
+
+    if (file->GetSize() == newSize)
+        return 0;
+
+    FATFile* ffile = (FATFile*)file;
+
+    FATFilesystem* fs = (FATFilesystem*)file->GetFilesystem();
+    uint32_t clusterSize = fs->bytesPerSector * fs->sectorsPerCluster;
+
+    uint32_t currentClusterCount = file->GetSize() / clusterSize + 1;
+    uint32_t newClusterCount = newSize / clusterSize + 1;
+
+    if (file->GetSize() > newSize) {
+        uint64_t topOfCluster = file->GetSize() - ((currentClusterCount - 1) * clusterSize);
+        uint64_t bottomOfCluster = newSize - ((newClusterCount - 1) * clusterSize);
+        if (newClusterCount < currentClusterCount) {
+            if (!ShrinkClusterChain(ffile->firstCluster, newClusterCount, fs))
+                return -1;
+
+            topOfCluster = clusterSize;
+        }
+
+        // Zero the cluster
+        uint8_t* buffer = new uint8_t[clusterSize];
+        uint64_t sector = (fs->ClusterToLBA(((FATDirectory*)file->GetDirectory())->firstCluster);
+        if (file->GetFilesystem()->Read(sector, buffer, clusterSize) < 0)
+            return -1;
+
+        memset(buffer + bottomOfCluster, 0, topOfCluster - bottomOfCluster);
+
+        if (file->GetFilesystem()->Write(sector, buffer, clusterSize) < 0)
+            return -1;
+
+        // Set the memory file size
+        file->SetSize(newSize);
+
+        delete buffer;
+
+    } else
+        return 0;
+
+    // Set the on disk file size
+    uint32_t cluster = ((FATDirectory*)file->GetDirectory())->firstCluster;
+
+    uint32_t* buffer = new uint32_t[fs->bytesPerSector / 4];
+    uint32_t dirEntCount = (fs->bytesPerSector * fs->sectorsPerCluster) / sizeof(DirectoryEntry);
+    DirectoryEntry* dirBuffer = new DirectoryEntry[dirEntCount];
+    uint32_t lastFATSector = 0xFFFFFFFF;
+    do {
+        uint32_t FATSector = fs->firstFATSector + ((cluster * 4) / fs->bytesPerSector);
+        uint32_t FATOffset = ((cluster * 4) % fs->bytesPerSector) / 4;
+
+        if (lastFATSector != FATSector) {
+            if (fs->Read(FATSector, buffer, fs->bytesPerSector) < 0) {
+                delete buffer;
+                delete dirBuffer;
+                return -1;
+            }
+            lastFATSector = FATSector;
+        }
+
+        if (fs->Read(fs->ClusterToLBA(cluster), dirBuffer, dirEntCount) < 0) {
+            delete buffer;
+            delete dirBuffer;
+            return -1;
+        }
+
+        for (uint32_t i = 0; i < dirEntCount; i++) {
+            // Locate file entry
+        }
+
+        cluster = buffer[FATOffset] & 0x0FFFFFFF;
+    } while (cluster != 0 && !((cluster & 0x0FFFFFFF) >= 0x0FFFFFF8));
+
+    delete buffer;
+    delete dirBuffer;
 
     return 0;
 }

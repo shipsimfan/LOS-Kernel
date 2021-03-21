@@ -95,6 +95,7 @@ private:
     bool SetupDirectory(FATDirectory* directory, FATFilesystem* filesystem);
 
     Queue<void>* GetClusterChain(uint32_t firstCluster, FATFilesystem* filesystem);
+    bool ShrinkClusterChain(uint32_t firstCluster, uint32_t newClusterCount, FATFilesystem* filesystem);
 };
 
 class FATFilesystem : public Filesystem {
