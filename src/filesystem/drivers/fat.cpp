@@ -342,7 +342,7 @@ int64_t FATDriver::Truncate(File* file, int64_t newSize) {
 
         // Zero the cluster
         uint8_t* buffer = new uint8_t[clusterSize];
-        uint64_t sector = (fs->ClusterToLBA(((FATDirectory*)file->GetDirectory())->firstCluster);
+        uint64_t sector = fs->ClusterToLBA(((FATDirectory*)file->GetDirectory())->firstCluster);
         if (file->GetFilesystem()->Read(sector, buffer, clusterSize) < 0)
             return -1;
 

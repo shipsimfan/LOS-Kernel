@@ -31,10 +31,13 @@ void File::DecreamentRefCount() {
     refCount--;
 }
 
+void File::SetSize(int64_t newSize) { size = newSize; }
+
 Filesystem* File::GetFilesystem() { return filesystem; }
 int64_t File::GetSize() { return size; }
 const char* File::GetName() { return name; }
 uint64_t File::GetFlags() { return flags; }
+Directory* File::GetDirectory() { return directory; }
 
 Directory::Directory(const char* name, Directory* parent, Filesystem* filesystem) : filesystem(filesystem) {
     this->name = new char[strlen(name) + 1];
